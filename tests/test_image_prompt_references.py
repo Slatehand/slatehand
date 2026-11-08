@@ -63,6 +63,18 @@ def test_only_authored_references_enter_every_project_image_prompt(prompt):
     assert all("purpose" not in item for item in actual.describe())
 
 
+def test_keyframe_constraint_does_not_forbid_text_the_prompt_asks_for():
+    """硬约束只禁止计划外文字；正文要求的屏幕文字不能被尾句否定。"""
+    document = SimpleNamespace(aspect_ratio=SimpleNamespace(value="16:9"))
+    prompt = "手机屏幕亮起，清晰显示白色数字「03:17」。"
+    frame = Keyframe("a" * 32, "b" * 32, None, prompt, ())
+    compiled = _keyframe_effective_prompt(document, frame, inputs())
+    assert compiled.startswith(prompt)
+    assert "不得生成分镜拼图或水印" in compiled
+    assert "除正文明确要求的画面内文字外，不得添加文字或字幕" in compiled
+    assert "分镜拼图、文字或水印" not in compiled
+
+
 @pytest.mark.parametrize("count", [1, 2])
 def test_qwen_uses_its_actual_single_or_multiple_image_labels(count):
     actual = inputs(count)
