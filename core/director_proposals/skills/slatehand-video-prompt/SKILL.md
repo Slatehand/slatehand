@@ -7,6 +7,9 @@ description: 根据当前视频 recipe 与实际输入优化单个 Segment 的�
 
 保持 Scene、覆盖 Shot、Segment 已保存的导演意图。用户指定正文语言时服从，未指定时不增加语言约束。
 
+Shot 的 `composition` 与已选首尾帧的景别或机位不一致时，已选帧是起止画面的事实，不按文字把镜头写回去；把差异告诉用户，
+由用户决定是否用 `edit_script` 写回（写回会清除覆盖该 Shot 的 Segment 已选视频）。
+
 ## 多 Shot Segment
 
 `context.shots` 是该 Segment 覆盖的 Shot（按顺序），可能只有一项，也可能有多项。

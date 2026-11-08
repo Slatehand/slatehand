@@ -17,12 +17,13 @@ Agent 启动提示、MCP instructions 和 Web 校对任务里的一致性说明�
 需要共享校对原则时必须显式传 `include=["consistency-review"]`。
 
 `slatehand-keyframe-sequence` 是 Keyframe 契约附带的生产执行 Skill（资源名 `production/slatehand-keyframe-sequence/SKILL.md`）：
-用户要求连续生成多个 Segment 的关键帧时，按依赖与锚点帧排序、逐帧看图审核、诊断重试、选图或原样复用已选帧后再推进批次。
-它不产生 proposal、不新增 Core 门禁，画面决定仍以 planner 为准。
+用户要求连续生成多个 Segment 的关键帧时，先打样确立基准，再按依赖与锚点帧排序、逐帧看图审核、诊断重试、选图或原样复用已选帧后推进批次，
+隐藏有明确依据的不合格候选并如实汇报。它不产生 proposal、不新增 Core 门禁，画面决定仍以 planner 为准。
 
-Keyframe 入口 `slatehand-keyframe-planner` 读取 Scene 地点、状态与地点图片说明来理解空间，但不输出地点图片绑定；只有人类显式加入
-Segment 辅助参考的 Asset 才进入生图。`references/cinematic-keyframe-design.md` 讲从 Shot 自行推导空间与正反打背景，
-`references/cinematic-frame-prompting.md` 讲如何把地点事实写进静态画面正文。
+Keyframe 入口 `slatehand-keyframe-planner` 读取 Scene 地点、状态与地点图片说明来理解空间，但不绑定地点；只有 Keyframe 显式参考的地点图片和人类加入
+Segment 辅助参考的 Asset 才进入生图。景别或机位不能服务镜头功能时，它可以调整并在计划提交后写回 Shot 的 `composition`，不改变镜头功能和揭示路径。
+`references/cinematic-keyframe-design.md` 讲帧数选择、景别与重心、从 Shot 推导空间与正反打背景，
+`references/cinematic-frame-prompting.md` 讲静态画面正文怎么写：地点事实、受力定点、光学和情绪。
 
 视频入口 `slatehand-video-prompt` 读取当前 recipe 工作集与 `context.shots`（多 Shot Segment 的段内切镜按顺序写成软约束，首尾 Picture 只锚定首末 Shot）；当前视频插件的专业 Skill 随插件发布，经契约 `plugin/` 资源交付。
 

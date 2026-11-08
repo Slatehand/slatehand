@@ -190,7 +190,8 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
 | `song_prompt` | `slatehand-song-prompt` + 当前文生音频插件的 Skill | 无工作集（只读契约，上下文经 `read_story` / `get_details`） | 只在对话中交付的 Playground 文生音频参数（风格描述、歌词等），由用户复制到 Playground 生成；不写入项目 |
 
 - Keyframe 契约另附 `production/slatehand-keyframe-sequence/SKILL.md`：用户要求连续生成多个 Segment 的关键帧时，
-  按依赖与锚点帧排序，逐帧看图审核、按原因重试（每帧有预算）、选图或原样复用已选帧后再推进批次。它只是 Skill
+  先打样确立基准，再按依赖与锚点帧排序，逐帧看图审核、按原因重试（每帧有预算）、选图或原样复用已选帧后推进批次，
+  隐藏有明确依据的不合格候选并如实汇报。它只是 Skill
   层的软约束，不产生 proposal，也不新增 Core 门禁。
 - 六个生产契约共同附带 `slatehand-consistency-review`：修改前预检授权范围内的上下层联动，提交后重读核对；只读校对不修改；
   需要越出授权范围时先说明。它是共享工作原则，不是第七个生产阶段。

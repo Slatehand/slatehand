@@ -228,3 +228,60 @@ def test_same_shot_split_reuses_instead_of_redesigning_start_frames():
     assert "共享 → 抽帧 → 复用 → 参考重生成" in keyframe
     assert "对白之间的细微表演由视频完成" in keyframe
     assert "reuse_ready" in keyframe
+
+
+def test_keyframe_planner_derives_framing_and_frame_choice_from_the_beat():
+    """景别服从镜头功能且可写回脚本，一帧一个重心，结果不提前进首帧，双帧有成本。"""
+    resources = {r["name"]: r["text"] for r in read_contract("keyframe")["resources"]}
+    planner = resources["SKILL.md"]
+    design = resources["references/cinematic-keyframe-design.md"]
+    assert "不得重新选择景别" not in planner  # 景别是手段，不是不可改的上游决定
+    assert "update_shot_fields" in planner and "冻结的工作集过期" in planner
+    assert "自行建立完整空间" not in planner
+    assert "不要为了“有首帧”把结果提前画进首帧" in planner
+    assert "双帧不是更保险的选择" in planner
+    assert "一帧一个重心" in design
+    assert "信息覆盖不等于把所有信息塞进一张图" in design
+    assert "不设全片默认景别" in design  # 收紧景别不能变成新的机械默认值
+
+
+def test_image_prompt_skill_inherits_scene_reference_by_framing():
+    """场景参考不把参考图的景别和构图带进来；示例也不教“以某图为场景基础”。"""
+    skill = next(
+        r["text"]
+        for r in read_contract("keyframe")["resources"]
+        if r["name"].startswith("global/slatehand-image-prompt-writing/")
+    )
+    assert "场景参考按本图画框决定继承什么" in skill
+    assert "不要笼统写“以某张图为场景基础”" in skill
+    assert "为场景基础，保留" not in skill
+    assert "近景示例（场景参考只取光线与材质）" in skill
+
+
+def test_keyframe_production_samples_first_and_reports_hidden_candidates():
+    """先打样再铺开；只隐藏有明确依据的候选，并如实汇报。"""
+    sequence = next(
+        r["text"]
+        for r in read_contract("keyframe")["resources"]
+        if r["name"] == "production/slatehand-keyframe-sequence/SKILL.md"
+    )
+    assert "先打样，再铺开" in sequence
+    assert "一次 `start` 会全部提交" in sequence
+    assert "| 计划错误 |" in sequence
+    assert "不为了当锚点把某帧拉远" in sequence
+    assert "不隐藏（dismiss）被拒的候选" not in sequence
+    assert "只隐藏有明确依据的" in sequence
+    assert "留下最接近的一条" in sequence
+    assert "隐藏了哪些候选及原因" in sequence
+
+
+def test_script_and_video_contracts_follow_the_framing_rules():
+    """脚本从源头不为交代地点拉远；视频提示词以已选帧为起止画面的事实。"""
+    script = "\n".join(r["text"] for r in read_contract("script")["resources"])
+    assert "空间三层" not in script
+    assert "景别从镜头功能和心理距离来" in script
+    assert "一个构图一个重心" in script
+    assert "最少切镜也不等于用一个大景别把所有信息装进一个构图" in script
+    assert "每个全景都能说出戏剧理由" in script
+    video = read_contract("video_prompt")["resources"][0]["text"]
+    assert "已选帧是起止画面的事实" in video

@@ -108,7 +108,7 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `slatehand-keyframe-planner/SKILL.md`：Segment 关键帧规划 Skill。
 - `slatehand-keyframe-planner/references/cinematic-keyframe-design.md`：关键帧设计与帧数选择参考。
 - `slatehand-keyframe-planner/references/cinematic-frame-prompting.md`：关键帧画面正文写法（含情绪的可见化）。
-- `slatehand-keyframe-sequence/SKILL.md`：连续多 Segment 关键帧生产循环（排序、锚点帧、看图审核、重试、选图与复用），随 keyframe 契约以 `production/` 资源交付。
+- `slatehand-keyframe-sequence/SKILL.md`：连续多 Segment 关键帧生产循环（打样、排序、锚点帧、看图审核、重试、选图、隐藏与复用），随 keyframe 契约以 `production/` 资源交付。
 - `slatehand-location-planner/SKILL.md`：从完整脚本规划地点库与 Scene/Shot 绑定的 Skill。
 - `slatehand-location-planner/references/location-bible.md`：地点合并、状态、陈设与主光写法，附 `edit_locations` 操作字段。
 - `slatehand-location-planner/references/view-coverage.md`：逐 Shot 机位视图覆盖、正反打、同机位共用与景别视角。
