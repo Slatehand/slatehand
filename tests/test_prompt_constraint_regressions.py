@@ -245,6 +245,47 @@ def test_keyframe_planner_derives_framing_and_frame_choice_from_the_beat():
     assert "不设全片默认景别" in design  # 收紧景别不能变成新的机械默认值
 
 
+def test_every_keyframe_decision_starts_with_action_state_and_continuity():
+    """首帧启动前、尾帧已结束、进行中不进首尾槽位；连续镜头优先共享或抽帧，且规则排在最前。"""
+    resources = {r["name"]: r["text"] for r in read_contract("keyframe")["resources"]}
+    planner = resources["SKILL.md"]
+    # Agent 可能只读开头几千字符，三问必须排在规则正文之前。
+    head = planner[: planner.index("## 定位与上游")]
+    for required in (
+        "每张帧先答三问",
+        "启动前",
+        "进行中",
+        "已结束",
+        "动词序列",
+        "start_extraction_suggested=true",
+        "“跳切更有冲击力”不是理由",
+        "Core 没有中间槽位",
+        "在回复里每帧一行",
+    ):
+        assert required in head, required
+    assert len(head) < 2000
+
+    sequence = resources["production/slatehand-keyframe-sequence/SKILL.md"]
+    for required in ("| 动作状态 |", "| 状态错位 |", "重写视频提示词开头", "上一段改选视频后重抽"):
+        assert required in sequence, required
+
+    # “将发未发”“蓄势”会让动作中途被当成首帧，这些说法不能回来。
+    combined = "\n".join(resources.values())
+    for stale in ("将发未发", "蓄势", "蓄力", "动作即将发生", "动势"):
+        assert stale not in combined, stale
+    # 关键帧计划没有 reply_markdown 字段，写了会被 schema 拒绝。
+    assert "reply_markdown" not in planner
+
+    video = read_contract("video_prompt")["resources"][0]["text"]
+    assert "首帧里已经发生的动作不重演" in video
+    assert "必须按新帧重写" in video
+
+    launcher = (
+        Path(__file__).resolve().parents[1] / "integrations/agent_launcher/PROMPT.md"
+    ).read_text()
+    assert "每帧三问" in launcher and "进行中的画面不进首尾槽位" in launcher
+
+
 def test_image_prompt_skill_inherits_scene_reference_by_framing():
     """场景参考不把参考图的景别和构图带进来；示例也不教“以某图为场景基础”。"""
     skill = next(

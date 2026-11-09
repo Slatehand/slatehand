@@ -283,6 +283,8 @@ Scene。地点缺口不阻止解锁或生图。
 - 工作集给出当前视频 recipe、合法 `none/start/end/both` 策略与实际独立参考。分别判断身份/空间参考与精确起止画面的时间约束；
   没有必须精确的落点时默认单首帧，戏落在动作结果上时用单尾帧，两端都必须精确时才用双帧（两张图的细微不一致会在视频中段变成形变）。
   支持独立参考的 recipe 可不启用首尾帧；关闭端点可不填写正文，Core 保留其历史计划。角色进出不会自动激活另一端；显式共享交接仍须启用对应边界。
+- 每张帧先答三问：本段要演的动词序列；与上一段是否连续，连续时首帧优先共享边界或抽帧；这张图放哪个位置。首帧只画启动前，尾帧只画已结束，
+  进行中的画面不进首尾槽位，必须锁定时放进 Ref2VA 其他图片。答案写在 Agent 回复里，不进入项目状态；这是 Skill 层的软约束，Core 不校验。
 - 景别服从镜头功能，一帧一个重心，不为交代地点拉远。Planner 发现 Shot `composition` 的景别或机位不能服务镜头功能时，
   保持镜头功能、第一视觉重心和揭示路径不变进行调整，计划提交后用 `script.apply_operations` 的 `update_shot_fields` 写回；
   写回会清除覆盖该 Shot 的 Segment 已选视频，这种情况先问用户。这是 Skill 层的软约束，Core 不校验关键帧与 Shot 文字是否一致。
@@ -317,8 +319,8 @@ Keyframe 不保存地点绑定。Planner 工作集给出当前 Scene 的 `locati
 Segment 当前生效视频（有超分取超分）的一帧。Agent 用 `keyframe.extract_frame`（MCP `generate_media` `kind=frame_extraction`）
 走同一实现，省略帧号时同样取倒数第 5 帧；`project.get_details` `kind=keyframe` 的 `start_frame_extraction` 给出来源与是否可抽。
 产物只作为该首帧的候选，不自动选择，Agent 与人类都可看图后选入；需要后期处理时，用户导入处理后
-的图片再选择。上一段换版不会改写已选首帧，Core 不维护“尾帧续接”状态。共享首帧本身就是上一段尾帧，不提供此入口。同一 Shot 拆成的相邻 Segment 无法共享边界（上一段不启用尾帧）时，
-Keyframe 与视频提示词 Skill 建议优先抽取上一段真实末帧作为首帧，而不是独立生图；这只是 Agent 侧建议。
+的图片再选择。上一段换版不会改写已选首帧，Core 不维护“尾帧续接”状态。共享首帧本身就是上一段尾帧，不提供此入口。相邻 Segment 连续（同一 Shot 拆段，或动作跨段未完）且无法共享边界（上一段不启用尾帧）时，
+Keyframe 与视频提示词 Skill 建议优先抽取上一段真实末帧作为首帧，而不是独立生图，并按抽到的画面重写首帧正文和视频提示词开头；这只是 Agent 侧建议。
 
 **建议抽帧标记**：Keyframe 的 `extraction_suggested` 表示本帧应从视频抽帧获得（典型是上一段视频尚未生成、此时无从抽帧）。
 人类在关键帧卡勾选“建议抽帧”，Agent 经 Planner proposal 的 `start_extraction_suggested`（只限启用的独立首帧）或

@@ -51,4 +51,6 @@ select_keyframe_candidate 采用（遇到 keyframe.select_candidate 动作时，
 沿动作给出的 batch_id 继续，不把单轮 execution completed 当成整批完成。用户要求连续生成多个 Segment 的关键帧时，
 按 keyframe 契约的 `production/slatehand-keyframe-sequence/SKILL.md` 排序、看图审核、重试、选图与推进。
 
+关键帧的规划、重做或改提示词，无论范围大小，动手前都先按 keyframe 契约 `SKILL.md` 开头的“每帧三问”判断，并在回复里每帧写一行答案：这段要演的动词序列是什么；和上一段是否连续，连续时首帧取共享边界或抽上一段视频帧，不独立生图；这张图放哪个位置，首帧只画动作启动前，尾帧只画已结束，进行中的画面不进首尾槽位。
+
 用户交代长线任务后会离开。任务完成、失败停下，或需要用户决定才能继续时，在结束本轮回复前调用 `ring_alarm`，`message` 用一句话说明结果或要用户做什么；Core 主机会像闹钟一样响铃并弹窗，用户点“知道了”或 2 分钟后停止。普通问答、即时完成的小操作和中途进度不要响铃；同一次停下只响一次。`ring_alarm` 失败时在回复里说明即可。

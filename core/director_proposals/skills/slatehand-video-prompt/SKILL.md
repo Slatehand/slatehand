@@ -10,12 +10,14 @@ description: 根据当前视频 recipe 与实际输入优化单个 Segment 的�
 Shot 的 `composition` 与已选首尾帧的景别或机位不一致时，已选帧是起止画面的事实，不按文字把镜头写回去；把差异告诉用户，
 由用户决定是否用 `edit_script` 写回（写回会清除覆盖该 Shot 的 Segment 已选视频）。
 
+写正文前先看已选首尾帧：动作从首帧的状态开始，到尾帧的状态结束，首帧里已经发生的动作不重演。首帧换过（含抽帧）后，必须按新帧重写开头。
+
 ## 多 Shot Segment
 
 `context.shots` 是该 Segment 覆盖的 Shot（按顺序），可能只有一项，也可能有多项。
 
 - 只有一项：Segment 是连续镜头，不虚构段内切镜；需要切镜时与用户讨论拆 Segment。
-- 多项：正文按当前插件 Skill 的段内切镜写法顺序写出各 Shot（例如 `[Shot 1]`、`[Shot 2] At MM:SS.mmm …`）。切点按各 Shot 的构图、动作与 `duration_seconds` 的比例估算，只是软约束：Core 不按 Shot 切视频、不记录段内切点，生成后切点漂移仍是合格候选，不要求重生成。
+- 多项：正文按当前插件 Skill 的段内切镜写法顺序写出各 Shot（例如 `[Shot 1]`、`[Shot 2] At MM:SS.mmm …`）。切点按各 Shot 的构图、动作与 `duration_seconds` 的比例估算，只是软约束：Core 不按 Shot 切视频、不记录段内切点，生成后切点漂移仍是合格候选。
 - 首尾 Picture 只锚定第一个 Shot 的开头与最后一个 Shot 的结尾；中间 Shot 的人物与空间靠参考图维持。Ref2VA 时优先建议用户为可见角色绑定造型图，但只在用户明确要求时改绑定。
 - 同一句台词跨越段内剪辑时，按插件 Skill 的写法连接前后两段并保持音频连续。
 - 段内 Shot 数当前不超过 3 个；更多切镜先建议拆 Segment。
@@ -35,9 +37,9 @@ Shot 的 `composition` 与已选首尾帧的景别或机位不一致时，已选
 
 ## 参考素材与参数
 
-- 工作集 `video_inputs[]` 给出当前 Segment 的其他图片计划与实际媒体绑定；图片可以是任意画面内容，不限角色、地点或关键帧。按 `reference_inputs[].asset_id` 用 `read_media_input` 审看已绑定图片；未选中的规划与候选不能冒充实际视频输入。需要单独规划或生成其他图片时，使用 `save_reference_image_plan` 与 `generate_media(kind="reference_image")`；看图后用 `select_reference_image` 选入对应卡片（来源可为本卡候选、关键帧已选图或任一项目图片），人类可随时改选。
+- 工作集 `video_inputs[]` 给出当前 Segment 的其他图片计划与实际媒体绑定；图片可以是任意画面内容，不限角色、地点或关键帧。按 `reference_inputs[].asset_id` 用 `read_media_input` 审看已绑定图片；未选中的规划与候选不能冒充实际视频输入。需要单独规划或生成其他图片时，使用 `save_reference_image_plan` 与 `generate_media(kind="reference_image")`；看图后用 `select_reference_image` 选入对应卡片。
 - 除对白 TTS 外，只在用户本轮明确要求时绑定、替换或移除素材，或修改参数。只提交被要求的槽位或参数；改某个槽位时以工作集 `recipe_inputs` 中该槽位为起点，不擅自增删、重排已有绑定或改写其说明。
-- 槽位以 `video_recipe.recipe.slots` 为准，只填首帧/尾帧以外的槽位；首尾帧由 Core 按已选关键帧填写，不写进 `bindings`。数量、媒体类型、时长与 `describe=required` 的必填说明都按槽位声明，说明写清这项素材的用途。
+- 槽位以 `video_recipe.recipe.slots` 为准，只填首帧/尾帧以外的槽位；首尾帧由 Core 按已选关键帧填写，不写进 `bindings`。数量、媒体类型、时长与 `describe=required` 的必填说明都按槽位声明。
 - `asset_id` 从 `bindable_assets` 选取，其 `slots` 列出它能进入的槽位；用户点名的其它本项目 Asset 也可以，由 Core 校验。不能引用 Playground Asset。
 - `params` 只填 `video_recipe.editable_params` 声明的机制参数，只给要改的键，不改时传 `{}`；时长、seed、画幅等带语义角色的参数由 Core 填写。
 - 当前 recipe 没有所需槽位时先说明，经用户同意再用 `video.set_recipe` 切换；切到不支持某些槽位的 recipe 前必须先清空这些槽位。
@@ -51,9 +53,9 @@ Shot 的 `composition` 与已选首尾帧的景别或机位不一致时，已选
 超长 Segment 留到这里处理。工作集 `exceeds_soft_duration_limit` 为
 true 时（`context.duration_seconds` 超过插件声明的 `soft_duration_limit_seconds`），在优化
 提示词或用户要求生成该 Segment 视频前主动提醒用户：说明时长和可能 OOM 的风险，建议拆成多个 Segment，并给出
-建议的拆分点（自然动作的稳定状态、明确的控制方式变化或可复用的连续性锚点，可直接截帧续拍），同时说明拆分后
+建议的拆分点（自然动作的稳定状态、明确的控制方式变化或可复用的连续性锚点），同时说明拆分后
 新 Segment 需要自己的关键帧和提示词；后段与前段不共享边界帧时，建议它的首帧在前段视频选定后从前段真实末帧
-抽取，而不是独立生图，避免道具、手势和光线在拼接处跳变。
+抽取，而不是独立生图。
 
 这只是提醒，不是 Core 约束。用户同意后再用 `script.apply_operations` 的 `split_segment` 拆分，然后分别为各段
 写提示词；拆分不改变 Shot 设计，拆出的相邻 Segment 共享边界 Shot 时是延续同一镜头，两段都要给出覆盖的

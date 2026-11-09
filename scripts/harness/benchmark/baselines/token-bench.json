@@ -10,8 +10,8 @@
     ]
   },
   "environment": {
-    "date": "2026-11-08",
-    "git_sha": "2e0bca59e1e325ca0dbf26c5de583fbb42d8f3bc",
+    "date": "2026-11-10",
+    "git_sha": "2a4791727d3c62e8f9ca6b4c6eb1c851884ff3ec",
     "python_version": "3.12.12",
     "platform": "macOS-26.6.2-arm64-arm-64bit",
     "driver": "scripts/harness/benchmark/fake_agent_driver.py"
@@ -23,16 +23,16 @@
     "tools_list_bytes": 51134,
     "scenarios": {
       "h3": {
-        "total_wire_bytes": 32213
+        "total_wire_bytes": 32190
       },
       "keyframe": {
-        "total_wire_bytes": 137054
+        "total_wire_bytes": 137038
       },
       "location": {
         "total_wire_bytes": 65091
       },
       "ref2va": {
-        "total_wire_bytes": 33581
+        "total_wire_bytes": 33558
       },
       "reference": {
         "total_wire_bytes": 25482
@@ -51,9 +51,9 @@
         "tool_count": 31,
         "requests": 6,
         "input_bytes": 1527,
-        "output_bytes": 30686,
-        "total_wire_bytes": 32213,
-        "contract_read_bytes": 9437,
+        "output_bytes": 30663,
+        "total_wire_bytes": 32190,
+        "contract_read_bytes": 9414,
         "workset_read_bytes": 10110,
         "pagination_rounds": 6,
         "wait_rounds": 1,
@@ -77,7 +77,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 157,
-          "output_bytes": 9280,
+          "output_bytes": 9257,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -136,9 +136,9 @@
         "tool_count": 31,
         "requests": 8,
         "input_bytes": 2019,
-        "output_bytes": 135035,
-        "total_wire_bytes": 137054,
-        "contract_read_bytes": 65895,
+        "output_bytes": 135019,
+        "total_wire_bytes": 137038,
+        "contract_read_bytes": 65879,
         "workset_read_bytes": 35291,
         "pagination_rounds": 8,
         "wait_rounds": 1,
@@ -162,7 +162,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 159,
-          "output_bytes": 65736,
+          "output_bytes": 65720,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -328,9 +328,9 @@
         "tool_count": 31,
         "requests": 7,
         "input_bytes": 1783,
-        "output_bytes": 31798,
-        "total_wire_bytes": 33581,
-        "contract_read_bytes": 9441,
+        "output_bytes": 31775,
+        "total_wire_bytes": 33558,
+        "contract_read_bytes": 9418,
         "workset_read_bytes": 10114,
         "pagination_rounds": 7,
         "wait_rounds": 1,
@@ -354,7 +354,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 161,
-          "output_bytes": 9280,
+          "output_bytes": 9257,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
