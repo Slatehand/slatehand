@@ -36,6 +36,16 @@ export function ExternalAgentEntry({ target }: { target: ExternalAgentTarget }) 
   );
 }
 
+const AGENT_LABELS: Record<string, string> = {
+  pi: "Pi",
+  codex: "Codex CLI",
+  claude: "Claude Code",
+  agy: "Antigravity CLI",
+  kimi: "Kimi Code",
+  dsh: "DeepSeek Harness",
+  grok: "Grok Build",
+};
+
 function quote(value: string): string {
   return "'" + value.replaceAll("'", "'\\''") + "'";
 }
@@ -50,7 +60,7 @@ export function ExternalAgentConnect({ target }: { target: ExternalAgentTarget }
   const forPlayground = projectId === null;
   const command = baseCommand && debug ? `${baseCommand} --debug` : baseCommand;
   useEffect(() => {
-    if (agent !== "pi" && agent !== "codex" && agent !== "agy" && agent !== "kimi" && agent !== "dsh" && agent !== "grok") return;
+    if (!(agent in AGENT_LABELS)) return;
     let cancelled = false;
     setCommand("");
     setError("");
@@ -78,23 +88,19 @@ export function ExternalAgentConnect({ target }: { target: ExternalAgentTarget }
         <span>你使用什么 Agent？</span>
         <select value={agent} onChange={(event) => setAgent(event.target.value)}>
           <option value="">请选择</option>
-          <option value="pi">Pi</option>
-          <option value="codex">Codex CLI</option>
-          <option value="agy">Antigravity CLI</option>
-          <option value="kimi">Kimi Code</option>
-          <option value="dsh">DeepSeek Harness</option>
-          <option value="grok">Grok Build</option>
+          {Object.entries(AGENT_LABELS).map(([value, name]) => <option key={value} value={value}>{name}</option>)}
           <option value="other">其他 Agent</option>
         </select>
       </label>
-      {agent === "other" ? <p>当前一键接入支持 Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness 和 Grok Build。其他 Agent 的接入命令还在准备中。</p> : null}
-      {agent === "pi" || agent === "codex" || agent === "agy" || agent === "kimi" || agent === "dsh" || agent === "grok" ? <>
+      {agent === "other" ? <p>当前一键接入支持 {Object.values(AGENT_LABELS).join("、")}。其他 Agent 的接入命令还在准备中。</p> : null}
+      {agent in AGENT_LABELS ? <>
         <p>你可以询问当前应该做什么。</p>
         {forPlayground
           ? <p>连接后，Agent 可以在 Playground 中按你的指令提交实验；候选选择与跨域复制仍由你完成。</p>
           : <p>连接后，Agent 可按你的指令处理当前项目；候选选择与最终审核仍由你完成。</p>}
-        <p>复制命令，在这台电脑的终端粘贴运行即可打开 {agent === "codex" ? "Codex CLI" : agent === "agy" ? "Antigravity CLI" : agent === "kimi" ? "Kimi Code" : agent === "dsh" ? "DeepSeek Harness" : agent === "grok" ? "Grok Build" : "Pi"}。模型由你在 Agent 中选择和切换。首次运行需已安装 {agent === "codex" ? "Codex CLI" : agent === "agy" ? "Antigravity CLI" : agent === "kimi" ? "Kimi Code" : agent === "dsh" ? "DeepSeek Harness" : agent === "grok" ? "Grok Build" : "Pi"} 和 Docker Desktop。</p>
+        <p>复制命令，在这台电脑的终端粘贴运行即可打开 {AGENT_LABELS[agent]}。模型由你在 Agent 中选择和切换。首次运行需已安装 Docker Desktop。</p>
         {agent === "codex" ? <p>使用独立的 Codex 配置与会话。首次连接导入本机文件形式的登录缓存；没有可用缓存时，请在 Codex 中完成设备码登录。</p> : null}
+        {agent === "claude" ? <p>使用独立的 Claude Code 配置与会话，不导入宿主钥匙串、插件或历史。首次连接请在 CLI 中完成登录，并确认一次工作区信任与跳过权限询问；后续保留在隔离配置卷。</p> : null}
         {agent === "agy" ? <p>使用独立的 Antigravity 配置与会话，不导入宿主插件或历史。首次连接请在 CLI 中完成登录，后续登录态保留在隔离配置卷。</p> : null}
         {agent === "kimi" ? <p>使用独立的 Kimi Code 配置与会话，不导入宿主凭据或历史。启动默认使用完全自动权限模式；首次连接请在 CLI 中完成登录，后续登录态保留在隔离配置卷。</p> : null}
         {agent === "dsh" ? <p>使用官方 DeepSeek Harness Web UI 与独立配置，不导入宿主凭据或历史。浏览器只通过本机地址访问；新会话默认使用完全权限且不询问，首次连接请在 Web UI 中配置模型凭据。</p> : null}

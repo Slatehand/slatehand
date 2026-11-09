@@ -371,10 +371,10 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `agent_launcher/__main__.py`：构建/复用通用 Agent 镜像、准备隔离容器、检测宿主本机 HTTP 代理并启动所选 Agent。
 - `agent_launcher/PROMPT.md`：启动后的项目连接上下文提示。
 - `agent_launcher/PLAYGROUND_PROMPT.md`：Playground scope 的启动上下文提示。
-- `agent_launcher/Dockerfile`：一次安装全部六种 CLI 的通用 Agent 容器镜像。
+- `agent_launcher/Dockerfile`：一次安装全部七种 CLI 的通用 Agent 容器镜像。
 - `agent_launcher/dsh-slatehand.cordis.yml`：DeepSeek Harness 的 MCP 配置片段。
 - `agent_launcher/client.py`：外部工作区的固定 MCP 客户端；`start --debug` 写入调试模式提示词与标记。
-- `agent_launcher/gateway.py`：隔离网络出口、固定 Google API 域名的宿主代理分流与 Core 路由。
+- `agent_launcher/gateway.py`：隔离网络出口、固定 Google 与 Anthropic 域名的宿主代理分流与 Core 路由。
 - `agent_launcher/clipboard.py`：宿主终端按键触发的图片传输桥。
 - `agent_launcher/clipboard_input.py`：容器内临时图片校验与剪贴板发布。
 - `slatehand_mcp/README.md`：MCP adapter 说明。

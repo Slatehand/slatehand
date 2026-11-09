@@ -12,7 +12,7 @@ import socket
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# 这些固定的 Google 服务域名由厂商控制，不接受 Agent 自定义链式代理目标。
+# 这些固定的 Google 与 Anthropic 服务域名由厂商控制，不接受 Agent 自定义链式代理目标。
 # 标准 CONNECT 会由宿主代理重新解析域名，只有这些目标委托给受信宿主代理。
 HOST_PROXY_TARGETS = frozenset(
     {
@@ -25,6 +25,11 @@ HOST_PROXY_TARGETS = frozenset(
         "s-aiplatform.googleapis.com",
         "oauth2.googleapis.com",
         "oauth2.mtls.googleapis.com",
+        "api.anthropic.com",
+        "claude.ai",
+        "claude.com",
+        "platform.claude.com",
+        "sso.claude.com",
     }
 )
 
@@ -65,7 +70,7 @@ def public_addresses(host):
 
 @contextmanager
 def model_upstream(host, addresses):
-    """固定 Google 服务保留域名经宿主代理分流；其它目标始终连接已校验 IP。"""
+    """固定厂商服务保留域名经宿主代理分流；其它目标始终连接已校验 IP。"""
     proxy_port = os.environ.get("SLATEHAND_HOST_PROXY_PORT")
     if proxy_port and host.lower().rstrip(".") in HOST_PROXY_TARGETS:
         port = int(proxy_port)

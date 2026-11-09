@@ -24,15 +24,25 @@ def main():
     parser.add_argument(
         "--debug", action="store_true", help="在 instructions 最前面注入调试模式提示词。"
     )
+    parser.add_argument(
+        "--flat-tool-schemas",
+        action="store_true",
+        help="为不接受顶层 oneOf 的客户端发布扁平 schema，条件写入工具说明。",
+    )
     args = parser.parse_args()
     try:
         bridge = CoreBridge(args.core_origin, args.token_file)
     except ValueError as exc:
         parser.error(str(exc))
     server = (
-        create_playground_server(bridge, debug=args.debug)
+        create_playground_server(bridge, debug=args.debug, flat_tool_schemas=args.flat_tool_schemas)
         if args.scope == "playground"
-        else create_server(bridge, proposal_directory=args.proposal_directory, debug=args.debug)
+        else create_server(
+            bridge,
+            proposal_directory=args.proposal_directory,
+            debug=args.debug,
+            flat_tool_schemas=args.flat_tool_schemas,
+        )
     )
 
     async def serve():

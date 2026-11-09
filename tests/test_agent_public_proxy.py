@@ -298,3 +298,11 @@ def test_host_proxy_failures_and_private_google_resolution_are_closed(
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["api.anthropic.com", "claude.ai", "claude.com", "platform.claude.com", "sso.claude.com"],
+)
+def test_claude_code_login_and_inference_use_the_trusted_host_proxy(host):
+    assert host in gateway.HOST_PROXY_TARGETS

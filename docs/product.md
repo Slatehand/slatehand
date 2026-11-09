@@ -36,7 +36,7 @@ Scene 页另有镜头设计列表；Segment 标签显示覆盖的 Shot 区间与
 | 人类（浏览器） | 创建项目、手工编辑全部计划、生成媒体、**采用候选**、**审核确认**、**Approval**、复制资产 | — |
 | 外部 Agent（终端里由用户启动） | 读取 Core 投影与专业 Skill；提交 proposal；编辑计划；按用户指令生成媒体、观察任务、装配 | 采用候选、审核确认、Approval、重新开放生产、直接写项目文件、调用 Provider |
 
-外部 Agent 是用户自己选择的成熟工具（Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness、Grok Build）。
+外部 Agent 是用户自己选择的成熟工具（Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness、Grok Build、Claude Code）。
 Slatehand 不内置 Agent、不持有模型会话，也没有隐藏 fallback。详见 [外部 Agent 接入](external-agents.md)。
 
 ## 核心概念

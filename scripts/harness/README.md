@@ -43,7 +43,7 @@ MCP 结果的 text content 始终是完整 JSON，`structured_content` 携带同
 | Pi | 未验证 | 未验证（需授权 + 凭据） |
 | Codex CLI | opt-in `SLATEHAND_NATIVE_CODEX_TESTS=1`，默认 skip | 未验证 |
 | Kimi Code | `real_agent` 网关计量回归覆盖协议，未接真实模型 | 未验证 |
-| AGY / Grok | 未验证 | 未验证 |
+| AGY / Grok / Claude Code | 未验证 | 未验证 |
 
 真实模型列只有在仓库所有者明确授权并实际运行 `real_agent/` 后才能改为已验证。
 

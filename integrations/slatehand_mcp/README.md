@@ -10,7 +10,7 @@ stdio 与取消，本包负责严格工具参数到 HTTP 命令的映射。它�
 ```
 
 这是受信启动配置，不是模型工具参数。`--debug` 把 `debug_prompt.md`（调试模式提示词，与工作区 AGENTS.md 共用）
-放在 instructions 最前面，项目与 Playground scope 都支持。token 是专属限域 Agent Bearer，文件权限 0600；不得交给 adapter 人类或 Provider 凭据。必须连接启用了
+放在 instructions 最前面，项目与 Playground scope 都支持。`--flat-tool-schemas` 面向不接受顶层 `oneOf` 的客户端（Claude Code）：发布扁平 schema，分支条件写入工具说明，运行时校验不变。token 是专属限域 Agent Bearer，文件权限 0600；不得交给 adapter 人类或 Provider 凭据。必须连接启用了
 caller 策略（本机一键接入或 `--access-policy-file`）的既有单写服务；未配置策略的匿名开发服务不能作为外部 Agent 后端。Core origin 固定于
 启动配置，不跟随重定向或宿主代理。
 

@@ -82,7 +82,7 @@ shots. Slatehand does not leave that to prompt luck:
 
 ### Bring your own agent and models
 
-- **Use the agent you already have.** Pi, Codex CLI, Antigravity CLI, Kimi Code, DeepSeek Harness and Grok Build
+- **Use the agent you already have.** Pi, Codex CLI, Antigravity CLI, Kimi Code, DeepSeek Harness, Grok Build and Claude Code
   connect in one step; the agent manages its own model and account. Switching agents does not change the project,
   and the same rules apply to every agent.
 - **Models are plugins.** Image, video, TTS, upscaling, ASR and audio processing are plugins, chosen per

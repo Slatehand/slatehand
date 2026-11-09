@@ -66,7 +66,7 @@ print('npm extension installation passed with writable cache')
     assert b"passed" in output
 
 
-@pytest.mark.parametrize("agent_kind", ["pi", "codex", "agy", "kimi", "dsh", "grok"])
+@pytest.mark.parametrize("agent_kind", ["pi", "codex", "agy", "kimi", "dsh", "grok", "claude"])
 def test_isolated_idle_startup_mcp_read_and_host_denial(agent_kind):
     agent_image = IMAGE
     with running() as (server, local, workspaces):
@@ -148,6 +148,8 @@ def test_isolated_idle_startup_mcp_read_and_host_denial(agent_kind):
                 "/dsh:rw,uid=10002,gid=10002,mode=700",
                 "--tmpfs",
                 "/grok:rw,uid=10002,gid=10002,mode=700",
+                "--tmpfs",
+                "/claude:rw,uid=10002,gid=10002,mode=700",
                 "--mount",
                 f"type=volume,source={volume},target=/workspace",
                 agent_image,
@@ -195,6 +197,9 @@ def inspect_startup(file,args):
  elif AGENT_KIND=='grok':
   assert file==AGENT_KIND
   assert args==['grok']
+ elif AGENT_KIND=='claude':
+  assert file==AGENT_KIND
+  assert args[:3]==['claude','--dangerously-skip-permissions','--strict-mcp-config']
  raise SystemExit(0)
 os.execvp=inspect_startup
 sys.argv=['/app/client.py','start',AGENT_KIND]
@@ -267,6 +272,21 @@ if AGENT_KIND=='grok':
  assert native.returncode==0,native.stderr.decode()
  assert Path('/grok/config.toml').is_file()
  assert 'slatehand' in Path('/grok/config.toml').read_text()
+if AGENT_KIND=='claude':
+ assert Path('/workspace/CLAUDE.md').read_text()==Path('/workspace/AGENTS.md').read_text()
+ import asyncio
+ from mcp import Client
+ from mcp.client.stdio import StdioServerParameters
+ async def flat_stdio():
+  params=StdioServerParameters(command='python',args=['/app/client.py','mcp','--flat-tool-schemas'],cwd='/app')
+  async with Client(params) as c:
+   tools=(await c.list_tools()).tools
+   assert len(tools)==31 and not any('oneOf' in t.input_schema for t in tools)
+   result=await c.call_tool('read_workflow', {
+    'project_id':config['project_id'],'expected_revision':config['revision'],
+    'idempotency_key':'claude-handoff'})
+   assert not result.is_error
+ asyncio.run(flat_stdio())
 print('native agent available; host denied; MCP read-only connection passed')
 """.replace("CORE_PORT", str(server.server_address[1])).replace("AGENT_KIND", repr(agent_kind))
             output = docker("exec", "-i", agent, "python", "-", input=script.encode())

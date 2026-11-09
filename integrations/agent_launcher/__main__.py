@@ -31,6 +31,17 @@ BUILD_CONTEXT_FILES = (
 # MCP adapter 引用的 Core 单一事实源文本；只复制这些纯文本，不带 Core 代码或作品。
 CORE_TEXT_FILES = ("core/director_proposals/skills/consistency_instruction.md",)
 AGENT_IMAGE = "slatehand-external-agents:latest-v1"
+BUILD_MIRROR_VARIABLE = "SLATEHAND_AGENT_BUILD_MIRROR"
+# official 不传参数，使用 Dockerfile 的官方默认值。
+# 镜像站同步不全的包（Grok）在 Dockerfile 里固定走官方源。
+BUILD_MIRRORS = {
+    "china": {
+        "APT_MIRROR": "mirrors.aliyun.com",
+        "NPM_REGISTRY": "https://registry.npmmirror.com",
+        "PIP_INDEX_URL": "https://mirrors.aliyun.com/pypi/simple",
+    },
+    "official": {},
+}
 
 
 def host_proxy_port(environment):
@@ -163,6 +174,27 @@ def agent_build_digest(root):
     return digest.hexdigest()
 
 
+def build_mirror_arguments(root, environment):
+    """启动命令在新终端运行，读不到 start.sh 的环境：环境变量优先，其次 start.local.env。"""
+    name = environment.get(BUILD_MIRROR_VARIABLE)
+    local_env = root / "start.local.env"
+    if name is None and local_env.is_file():
+        match = re.search(
+            rf"^\s*(?:export\s+)?{BUILD_MIRROR_VARIABLE}=[\"']?(\w*)[\"']?\s*$",
+            local_env.read_text(),
+            re.MULTILINE,
+        )
+        name = match.group(1) if match else None
+    name = name or "china"
+    if name not in BUILD_MIRRORS:
+        raise ValueError(f"{BUILD_MIRROR_VARIABLE} 只能是 china 或 official。")
+    return [
+        argument
+        for key, value in BUILD_MIRRORS[name].items()
+        for argument in ("--build-arg", f"{key}={value}")
+    ]
+
+
 def prepare_agent_image(root, state_directory, *, update=False):
     """所有 Agent 共用同一镜像；构建锁跨项目、跨 Agent，等待后重新检查摘要。"""
     descriptor = os.open(
@@ -193,23 +225,35 @@ def prepare_agent_image(root, state_directory, *, update=False):
         if not update and installed_digest == source_digest:
             print("正在复用通用 Agent 镜像……", flush=True)
             return AGENT_IMAGE
-        print("正在构建通用 Agent 镜像（Pi、Codex、AGY、Kimi、DeepSeek、Grok）……", flush=True)
+        mirror_arguments = build_mirror_arguments(root, os.environ)
+        print(
+            "正在构建通用 Agent 镜像（Pi、Codex、AGY、Kimi、DeepSeek、Grok、Claude Code）……",
+            flush=True,
+        )
         # 依赖安装层先于源码 COPY；普通源码变化复用依赖，显式更新才重新下载 latest。
         with tempfile.TemporaryDirectory(prefix="slatehand-agents-build-") as temporary:
             context = Path(temporary)
             prepare_build_context(root, context)
-            checked(
-                [
-                    "docker",
-                    "build",
-                    *(["--no-cache"] if update else []),
-                    "--label",
-                    f"slatehand.agent.source={source_digest}",
-                    "-t",
-                    AGENT_IMAGE,
-                    str(context),
-                ]
-            )
+            try:
+                checked(
+                    [
+                        "docker",
+                        "build",
+                        *(["--no-cache"] if update else []),
+                        *mirror_arguments,
+                        "--label",
+                        f"slatehand.agent.source={source_digest}",
+                        "-t",
+                        AGENT_IMAGE,
+                        str(context),
+                    ]
+                )
+            except ValueError:
+                raise ValueError(
+                    "Agent 镜像构建失败。请确认 Docker 已运行；"
+                    "如果是软件源问题，可在 start.local.env 设置 "
+                    f"{BUILD_MIRROR_VARIABLE}=official 改用官方源后重试。"
+                ) from None
     return AGENT_IMAGE
 
 
@@ -220,7 +264,7 @@ def main():
     parser.add_argument("--project")
     parser.add_argument("--playground", action="store_true")
     parser.add_argument(
-        "--agent", choices=["pi", "codex", "agy", "kimi", "dsh", "grok"], default="pi"
+        "--agent", choices=["pi", "codex", "agy", "kimi", "dsh", "grok", "claude"], default="pi"
     )
     parser.add_argument("--open-browser", action="store_true")
     parser.add_argument(
@@ -239,6 +283,7 @@ def main():
         "kimi": "Kimi Code",
         "dsh": "DeepSeek Harness",
         "grok": "Grok Build",
+        "claude": "Claude Code",
     }[args.agent]
     try:
         if args.open_browser:
@@ -301,6 +346,7 @@ def main():
             "kimi": "/kimi-code",
             "dsh": "/dsh",
             "grok": "/grok",
+            "claude": "/claude",
         }[args.agent]
         checked(["docker", "volume", "create", profile_volume])
         profile_root = Path(

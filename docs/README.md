@@ -25,7 +25,7 @@
 ```mermaid
 flowchart LR
     user([用户]) -->|浏览器| web[Web<br/>React SPA]
-    user -->|终端里下达指令| agent[外部 Agent<br/>Pi / Codex / AGY / Kimi / DSH / Grok]
+    user -->|终端里下达指令| agent[外部 Agent<br/>Pi / Codex / Claude / AGY / Kimi / DSH / Grok]
     web -->|HTTP + cookie 人类身份| server[Slatehand Server<br/>127.0.0.1:8765]
     agent -->|MCP stdio| mcp[slatehand_mcp adapter]
     mcp -->|HTTP + Bearer Agent 身份| server

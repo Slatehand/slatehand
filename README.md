@@ -64,7 +64,7 @@ AI 视频做叙事，最难的是让同一个人、同一个房间在几十个�
 
 ### 自带 Agent，自选模型
 
-- **Agent 用你已有的：** Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness、Grok Build 一键接入，
+- **Agent 用你已有的：** Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness、Grok Build、Claude Code 一键接入，
   模型和账号都由 Agent 自己管理。换 Agent 不用换项目，同样的规则对所有 Agent 生效。
 - **模型是插件：** 图片、视频、TTS、超分、ASR、音频处理都以插件接入，每项能力单独选择插件，可以跑在本地
   显卡上（例如 MiniMax H3 视频、Qwen Image、IndexTTS、SeedVR2）。插件在 Core 侧把外部 HTTP API 翻译成统一的

@@ -13,9 +13,13 @@ Slatehand 不内置 Agent。用户在自己的终端启动成熟的外部 Agent�
 | Kimi Code | `--agent kimi` | 官方安装器 latest（镜像构建时解析） | `slatehand-native-kimi-profile`（容器内登录，`--auto`） |
 | DeepSeek Harness | `--agent dsh` | `@deepseek-ai/dsh@latest`（镜像构建时解析） | `slatehand-native-dsh-profile`（Web UI 交互，宿主回环随机端口） |
 | Grok Build | `--agent grok` | `@xai-official/grok@latest`（镜像构建时解析） | `slatehand-native-grok-profile`（容器内登录） |
+| Claude Code | `--agent claude` | `@anthropic-ai/claude-code@latest`（镜像构建时解析） | `slatehand-native-claude-profile`（容器内登录，不读宿主钥匙串） |
 
-全部六种 CLI 一次安装在同一个 `slatehand-external-agents:latest-v1` 镜像内。切换 Agent 只切换启动命令、
+全部七种 CLI 一次安装在同一个 `slatehand-external-agents:latest-v1` 镜像内。切换 Agent 只切换启动命令、
 工作区卷和原生配置卷，直接复用该镜像；跨项目构建锁避免并发重复构建。
+构建时 apt、npm、pip 默认使用国内镜像（阿里云、npmmirror）；`start.local.env` 或环境变量设
+`SLATEHAND_AGENT_BUILD_MIRROR=official` 改用官方源。镜像站同步不全的 Grok 始终从 npmjs 安装，
+AGY 与 Kimi 的官方安装器和 Docker Hub 基础镜像不受此项影响。软件源只在构建期生效，不进入运行时环境。
 源码摘要变化时重建公共镜像并复用依赖安装层。删除项目容器不会更新 CLI；需要更新全部 CLI 时，
 在连接命令末尾加 `--update-agents`，该次构建禁用层缓存并重新获取官方 latest。
 
@@ -107,14 +111,14 @@ flowchart LR
     end
     mcp --> route --> core[Core 127.0.0.1:8765]
     tunnel --> internet[(公网模型服务)]
-    tunnel -->|固定 Google API 域名 · 公网预检| proxy[受信宿主 HTTP 代理<br/>保留域名分流] --> internet
+    tunnel -->|固定 Google / Anthropic 域名 · 公网预检| proxy[受信宿主 HTTP 代理<br/>保留域名分流] --> internet
 ```
 
 - 内部网络只有两类出口：当前项目的 Core application/Asset 路径，与公网 HTTPS 隧道（TLS 端到端透传，gateway 不解析模型协议、不读凭据）。
 - 系统 DNS 返回非公网地址（本机代理的 Fake-IP）时，gateway 用固定的 `https://1.1.1.1/dns-query` 重新解析 A 记录；仍非公网则拒绝。
 - 启动器优先从宿主 `HTTPS_PROXY`（兼容小写与 `HTTP_PROXY`）读取代理；变量未设置时，macOS 从当前系统
   HTTPS/HTTP 代理读取。只接受无认证的本机 HTTP 代理，只向 gateway 传入端口。
-  gateway 的 `HOST_PROXY_TARGETS` 固定 Google API 域名通过公网预检后，保留原域名经受信宿主代理 CONNECT，
+  gateway 的 `HOST_PROXY_TARGETS` 固定的 Google 与 Anthropic（Claude Code 登录和推理）域名通过公网预检后，保留原域名经受信宿主代理 CONNECT，
   继承宿主的域名分流；此分支由宿主代理再次解析厂商域名。其它目标仍连接已校验 IP，拒绝 DNS 重绑定。
   宿主代理失败返回 502，不回退直连；Agent 不获得宿主代理地址或直接宿主网络权限。
 - 工作区是每项目一个 Docker 卷 `slatehand-<agent>-<project_id>`；Agent 的会话与文件不是项目事实，Core 不读取。
@@ -162,6 +166,9 @@ flowchart LR
 
 MCP 约定：
 
+- 工具默认以顶层 `oneOf` 发布条件参数。Claude Code 会静默丢弃带顶层 `oneOf` 的工具，因此启动器给它的 adapter 加
+  `--flat-tool-schemas`：去掉顶层 `oneOf`，裸 object 字段（`submit_proposal.payload`）取各分支完整字段，分支条件写入工具说明。
+  只改变发布形状，运行时参数矩阵与 `invalid_arguments` 不变；其它 Agent 仍收到逐字节基线。
 - 读工具的幂等键由 MCP 生成，不暴露给模型；写工具的 `idempotency_key` 必须由模型提供，不同动作不得复用。
 - 为兼容会把可选字段补成 null 的原生连接器，MCP 把非当前 action 的 null 归一为省略；任何非 null 越界值仍拒绝。
 - 大型 submit 可将完整 object JSON 写入 Agent 自己的固定 `/workspace/proposals/<request_id>.json`，调用时只传

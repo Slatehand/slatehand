@@ -4,7 +4,7 @@ import { ExternalAgentConnect } from "./ExternalAgentConnect";
 import { copyText } from "./director_workspace/clipboard";
 vi.mock("./director_workspace/clipboard", () => ({ copyText: vi.fn() }));
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
-it.each(["pi", "codex", "agy", "kimi", "dsh", "grok"])("generates a project-bound runnable %s command", async (agent) => {
+it.each(["pi", "codex", "agy", "kimi", "dsh", "grok", "claude"])("generates a project-bound runnable %s command", async (agent) => {
   const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ command_prefix: "'/opt/Python Env/python' -m integrations.agent_launcher --socket '/private/control.sock' --core-port 8765", cwd: "/some/Slatehand user's" }) });
   vi.stubGlobal("fetch", fetcher);
   vi.mocked(copyText).mockResolvedValue(true);

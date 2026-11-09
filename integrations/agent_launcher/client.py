@@ -53,7 +53,7 @@ def agents_prompt(source, debug):
     return Path(DEBUG_PROMPT).read_text() + "\n\n" + prompt if debug else prompt
 
 
-def mcp_arguments(config, token, scope, debug=False):
+def mcp_arguments(config, token, scope, debug=False, flat_tool_schemas=False):
     """原生 MCP 启动参数；playground 追加 --scope playground，调试模式追加 --debug。"""
     arguments = [
         "-m",
@@ -67,6 +67,8 @@ def mcp_arguments(config, token, scope, debug=False):
         arguments += ["--scope", "playground"]
     if debug:
         arguments.append("--debug")
+    if flat_tool_schemas:
+        arguments.append("--flat-tool-schemas")
     return arguments
 
 
@@ -142,6 +144,29 @@ def grok_command():
         stdout=subprocess.DEVNULL,
     )
     return ["grok"]
+
+
+def claude_command():
+    """Start Claude Code with only the fixed Slatehand MCP; login stays in the profile volume."""
+    # 只读根下没有可写 HOME；配置与登录都落在隔离 profile 卷。
+    os.environ["HOME"] = os.environ.get("CLAUDE_CONFIG_DIR", "/claude")
+    return [
+        "claude",
+        "--dangerously-skip-permissions",
+        "--strict-mcp-config",
+        "--mcp-config",
+        json.dumps(
+            {
+                "mcpServers": {
+                    "slatehand": {
+                        "command": sys.executable,
+                        # Claude Code 静默丢弃带顶层 oneOf 的工具。
+                        "args": ["/app/client.py", "mcp", "--flat-tool-schemas"],
+                    }
+                }
+            }
+        ),
+    ]
 
 
 def dsh_command():
@@ -230,6 +255,10 @@ async def main():
         write_workspace_file("/workspace/startup.json", json.dumps(startup, ensure_ascii=False))
         write_workspace_file("/workspace/AGENTS.md", agents_prompt(prompt, debug))
         agent = sys.argv[2] if len(sys.argv) > 2 else "pi"
+        if agent == "claude":
+            # Claude Code 只读 CLAUDE.md，不读 AGENTS.md。
+            write_workspace_file("/workspace/CLAUDE.md", agents_prompt(prompt, debug))
+            os.execvp("claude", claude_command())
         if agent == "codex":
             os.execvp("codex", codex_command())
         if agent == "agy":
@@ -245,7 +274,9 @@ async def main():
         os.execvp("pi", ["pi", "--session-dir", "/workspace/sessions"])
     token = Path("/workspace/core-token")
     write_workspace_file(token, config["token"], 0o600)
-    arguments = mcp_arguments(config, token, scope, debug_mode())
+    arguments = mcp_arguments(
+        config, token, scope, debug_mode(), "--flat-tool-schemas" in sys.argv[2:]
+    )
     if sys.argv[1] == "mcp":
         os.execv(sys.executable, [sys.executable, *arguments])
     params = StdioServerParameters(

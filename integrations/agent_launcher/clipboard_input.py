@@ -12,7 +12,7 @@ MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
 def publish_image(content: bytes, agent: str) -> dict:
-    if agent not in {"codex", "pi", "agy", "kimi", "dsh", "grok"}:
+    if agent not in {"codex", "pi", "agy", "kimi", "dsh", "grok", "claude"}:
         raise ValueError("不支持的 Agent。")
     if not content.startswith(b"\x89PNG\r\n\x1a\n") or len(content) > MAX_IMAGE_BYTES:
         raise ValueError("剪贴板需要不超过 16 MiB 的 PNG。")

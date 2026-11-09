@@ -294,7 +294,7 @@ def test_local_agent_reference_then_script_without_manual_policy_edits():
         assert request(server, "POST", resource, command, agent)[0] == 403
 
 
-@pytest.mark.parametrize("agent", ["pi", "codex", "agy", "kimi", "dsh", "grok"])
+@pytest.mark.parametrize("agent", ["pi", "codex", "agy", "kimi", "dsh", "grok", "claude"])
 @pytest.mark.parametrize("proxy_source", ["environment", "macos"])
 @pytest.mark.parametrize("image_installed", [False, True])
 def test_launcher_does_not_choose_models_export_tokens_or_send_a_prompt(
@@ -387,7 +387,7 @@ def test_launcher_does_not_choose_models_export_tokens_or_send_a_prompt(
     else:
         assert len(builds) == 1
         assert "--no-cache" not in builds[0]
-        assert "--build-arg" not in builds[0]
+        assert "NPM_REGISTRY=https://registry.npmmirror.com" in builds[0]
         assert builds[0][builds[0].index("-t") + 1] == launcher.AGENT_IMAGE
     for args, _ in calls:
         if args[0] == "docker" and "python" in args:
@@ -409,6 +409,9 @@ def test_launcher_does_not_choose_models_export_tokens_or_send_a_prompt(
         assert all("host-only" not in str(call) for call in calls)
     elif agent == "grok":
         assert any("target=/grok" in str(args) for args, _ in calls)
+        assert all("host-only" not in str(call) for call in calls)
+    elif agent == "claude":
+        assert any("target=/claude" in str(args) for args, _ in calls)
         assert all("host-only" not in str(call) for call in calls)
 
 
@@ -531,6 +534,31 @@ def test_invalid_system_proxy_is_rejected(monkeypatch, settings):
         launcher.effective_host_proxy_port({})
 
 
+def test_build_mirror_defaults_to_china(tmp_path):
+    from integrations.agent_launcher.__main__ import BUILD_MIRRORS, build_mirror_arguments
+
+    arguments = build_mirror_arguments(tmp_path, {})
+    for key, value in BUILD_MIRRORS["china"].items():
+        assert arguments[arguments.index(f"{key}={value}") - 1] == "--build-arg"
+
+
+def test_build_mirror_reads_local_env_and_environment_wins(tmp_path):
+    from integrations.agent_launcher.__main__ import build_mirror_arguments
+
+    (tmp_path / "start.local.env").write_text(
+        "# SLATEHAND_AGENT_BUILD_MIRROR=china\nSLATEHAND_AGENT_BUILD_MIRROR=official\n"
+    )
+    assert build_mirror_arguments(tmp_path, {}) == []
+    assert build_mirror_arguments(tmp_path, {"SLATEHAND_AGENT_BUILD_MIRROR": "china"}) != []
+
+
+def test_build_mirror_rejects_unknown_value(tmp_path):
+    from integrations.agent_launcher.__main__ import build_mirror_arguments
+
+    with pytest.raises(ValueError, match="china 或 official"):
+        build_mirror_arguments(tmp_path, {"SLATEHAND_AGENT_BUILD_MIRROR": "elsewhere"})
+
+
 def test_codex_command_has_native_mcp_without_task_or_secret():
     from integrations.agent_launcher.client import codex_command
 
@@ -590,6 +618,35 @@ def test_grok_command_replaces_only_slatehand_mcp_in_isolated_profile(monkeypatc
     ]
     assert calls[1][1]["check"] is True
     assert not any("token" in value or "--model" in value for value in calls[1][0])
+
+
+def test_claude_command_has_only_fixed_mcp_without_task_or_model(monkeypatch):
+    from integrations.agent_launcher.client import claude_command
+
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/claude")
+    monkeypatch.setenv("HOME", "/synthetic-home")
+    command = claude_command()
+    assert os.environ["HOME"] == "/claude"
+    assert command[:3] == ["claude", "--dangerously-skip-permissions", "--strict-mcp-config"]
+    assert command[3] == "--mcp-config"
+    assert json.loads(command[4]) == {
+        "mcpServers": {
+            "slatehand": {
+                "command": sys.executable,
+                "args": ["/app/client.py", "mcp", "--flat-tool-schemas"],
+            }
+        }
+    }
+    assert len(command) == 5
+    assert not any("token" in item or "--model" in item for item in command)
+
+
+def test_mcp_arguments_pass_flat_tool_schemas_only_when_requested():
+    from integrations.agent_launcher.client import mcp_arguments
+
+    config = {"origin": "http://gateway:8080"}
+    assert "--flat-tool-schemas" not in mcp_arguments(config, "/t", "project")
+    assert mcp_arguments(config, "/t", "project", False, True)[-1] == "--flat-tool-schemas"
 
 
 def test_dsh_command_uses_fixed_patch_and_full_permission_mode(monkeypatch):

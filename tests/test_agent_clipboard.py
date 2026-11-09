@@ -104,7 +104,8 @@ def test_container_rejects_oversized_image_before_subprocess(monkeypatch):
         )
 
 
-def test_grok_uses_native_image_clipboard(monkeypatch):
+@pytest.mark.parametrize("agent", ["grok", "claude"])
+def test_agent_uses_native_image_clipboard(monkeypatch, agent):
     written = []
 
     def run(args, **kwargs):
@@ -115,7 +116,7 @@ def test_grok_uses_native_image_clipboard(monkeypatch):
         return SimpleNamespace(stdout=written[0])
 
     monkeypatch.setattr(clipboard_input.subprocess, "run", run)
-    png = b"\x89PNG\r\n\x1a\ngrok-image"
-    receipt = clipboard_input.publish_image(png, "grok")
+    png = b"\x89PNG\r\n\x1a\nnative-image"
+    receipt = clipboard_input.publish_image(png, agent)
     assert written == [png]
     assert receipt == {"byte_count": len(png), "sha256": hashlib.sha256(png).hexdigest()}

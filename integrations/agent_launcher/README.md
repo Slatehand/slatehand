@@ -1,6 +1,6 @@
 # 外部 Agent 启动脚本
 
-命令可打开 Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness 或 Grok Build，不发送初始消息、不创建任务。用户可以询问当前应该做什么。
+命令可打开 Pi、Codex CLI、Antigravity CLI、Kimi Code、DeepSeek Harness、Grok Build 或 Claude Code，不发送初始消息、不创建任务。用户可以询问当前应该做什么。
 本机受信启动为当前项目授予有限执行委托，Agent 等待用户具体指令后调用正式工具，无需手改策略文件。
 委托有有效期、项目范围和操作白名单，不包含人类审核、选择或直接文件访问权限。
 
@@ -32,9 +32,10 @@ DeepSeek Harness 的浏览器令牌写在各容器私有的 `/tmp`。调试标�
 文件都会改变 `agent_build_digest` 并触发镜像重建；构建上下文与摘要都忽略 `__pycache__`。
 测试只用该布局隔离启动 MCP 并完成 initialize 握手。
 
-六种 Agent 共用唯一镜像 `slatehand-external-agents:latest-v1`。首次构建一次安装全部 CLI：Pi、Codex、
-DeepSeek Harness 与 Grok 通过官方 npm 包的 `@latest` 安装；AGY 与 Kimi Code 使用官方安装器的 latest
-发布入口，保留 manifest 字节校验。选择不同 Agent 只改变启动命令、工作区卷和原生配置卷，直接复用同一镜像。
+七种 Agent 共用唯一镜像 `slatehand-external-agents:latest-v1`。首次构建一次安装全部 CLI：Pi、Codex、
+DeepSeek Harness、Grok 与 Claude Code 通过官方 npm 包的 `@latest` 安装；AGY 与 Kimi Code 使用官方安装器的 latest
+发布入口，保留 manifest 字节校验。构建期软件源由 `SLATEHAND_AGENT_BUILD_MIRROR` 决定（`china` 默认、`official`），
+环境变量优先于 `start.local.env`；Grok 因 npmmirror 同步不全，用 scope registry 固定走 npmjs。选择不同 Agent 只改变启动命令、工作区卷和原生配置卷，直接复用同一镜像。
 镜像构建使用跨项目、跨 Agent 的 `agents-image.build.lock`，等待锁后重新检查源码摘要。
 普通源码变化会重建公共镜像，但复用位于源码 COPY 前的依赖安装层，不重新下载 CLI。
 删除项目容器不会更新 CLI；需要更新全部 Agent 时，在连接命令末尾添加 `--update-agents`，此次构建
@@ -49,7 +50,7 @@ DeepSeek Harness 与 Grok 通过官方 npm 包的 `@latest` 安装；AGY 与 Kim
 启动器优先读取 `HTTPS_PROXY`（兼容小写与 `HTTP_PROXY`）；变量未设置时，macOS 通过 `scutil --proxy`
 读取当前启用的系统 HTTPS/HTTP 代理。只接受无认证的本机 HTTP 代理，向 gateway 传入端口，
 由 `host.docker.internal` 访问；Agent 仍只拿到隔离 gateway 的认证代理地址。
-`gateway.HOST_PROXY_TARGETS` 列出的固定 Google API 域名通过公网预检后，经宿主代理 CONNECT 原域名，
+`gateway.HOST_PROXY_TARGETS` 列出的固定 Google 与 Anthropic 域名通过公网预检后，经宿主代理 CONNECT 原域名，
 使 Clash 等代理按域名选择与宿主 AGY 相同的出口。此分支信任宿主代理对这些厂商域名的再次解析；
 其它域名或 IP 仍连接已校验 IP、防止 DNS 重绑定。指定的宿主代理连接失败返回 502，不回退直连。
 模型 TLS 端到端透传，Slatehand 不解析模型协议、不保存模型凭据、不筛选模型 ID，也不替代 Agent 刷新。
@@ -114,6 +115,22 @@ DeepSeek Harness Web UI 中配置 API 凭据，凭据只保存在隔离 profile�
 Grok 以原生交互 TUI 空闲启动，不接收初始任务或固定模型。首次连接在隔离 CLI 中完成登录，登录态与后续
 刷新只保留在 profile volume。外层仍使用非特权、只读根、内部网络、无宿主目录和无 Docker socket 的
 统一隔离边界；当前项目 Core 路由与人类审核限制不变。
+
+## Claude Code
+
+网页选择 Claude Code，复制 `--agent claude` 命令到终端。镜像构建时安装官方 `@anthropic-ai/claude-code@latest`，工作区为
+`slatehand-claude-<project_id>`，配置、会话与登录态保存在 `slatehand-native-claude-profile`（`CLAUDE_CONFIG_DIR=/claude`，
+同时作为只读根下的 `HOME`）。不读取宿主钥匙串或 `~/.claude`，不导入宿主配置、插件和会话。
+
+启动参数为 `--dangerously-skip-permissions --strict-mcp-config --mcp-config <固定 JSON>`，不含 Token、模型或初始任务；
+镜像设置 `ENABLE_CLAUDEAI_MCP_SERVERS=false`，账号里的 claude.ai 连接器也不进入容器。外层仍是非特权、只读根、
+内部网络、无宿主目录和无 Docker socket 的统一隔离边界。Claude Code 只读 `CLAUDE.md`，因此 `client.py start` 额外写入
+与 `AGENTS.md` 内容相同的 `/workspace/CLAUDE.md`。其 MCP 入口带 `--flat-tool-schemas`，否则带顶层 `oneOf` 的工具会被静默丢弃。
+
+首次连接依次选择主题、完成登录（容器内打不开浏览器：复制终端里的链接到宿主浏览器，再把页面给出的 code 粘回终端），并确认一次
+工作区信任与跳过权限询问，之后保留在配置卷。登录与推理域名（`api.anthropic.com`、`claude.ai`、`claude.com`、
+`platform.claude.com`、`sso.claude.com`）经宿主代理分流，与宿主 Claude Code 使用相同出口。镜像设置 `DISABLE_AUTOUPDATER=1`
+（更新走 `--update-agents`）和 `MAX_MCP_OUTPUT_TOKENS=100000`（专业契约和工作集较大）。
 
 Mac 图片粘贴：复制图片后，在启动器终端按 Ctrl+V。宿主仅在此按键读取 PNG，最多 16 MiB。
 Codex 分支经 docker exec stdin 写入容器 `/tmp` 的独占临时文件（权限 0600），X11 仅发布小型

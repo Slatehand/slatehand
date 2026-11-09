@@ -666,6 +666,61 @@ def published_tool_schema(name: str, model: object) -> dict[str, object]:
     return _prune_schema(schema)
 
 
+def _branch_rule(branch: dict[str, object]) -> str:
+    """把一个 oneOf 分支写成一句模型可读的条件。"""
+    properties = branch.get("properties", {})
+    conditions = []
+    empty = []
+    limits = []
+    for key, value in properties.items():
+        if "const" in value:
+            conditions.append(f"{key}={value['const']}")
+        elif "enum" in value:
+            conditions.append(f"{key}={'|'.join(value['enum'])}")
+        elif value.get("type") == "null" or value.get("maxItems") == 0:
+            empty.append(key)
+        elif value.get("maxItems") == 1:
+            limits.append(f"{key} 只给 1 项")
+    parts = []
+    discriminators = {
+        key for key, value in properties.items() if "const" in value or "enum" in value
+    }
+    if required := [key for key in branch.get("required", []) if key not in discriminators]:
+        parts.append("必填 " + "、".join(required))
+    if empty:
+        parts.append("省略 " + "、".join(empty))
+    parts.extend(limits)
+    return "；".join(conditions) + "：" + ("，".join(parts) or "无附加条件")
+
+
+def flat_tool_schema(schema: dict[str, object]) -> tuple[dict[str, object], str]:
+    """给拒绝顶层 oneOf 的客户端发布等价的扁平 schema 与条件说明。
+
+    只改变发布形状：运行时模型照常校验同一参数矩阵。裸 object 属性（如 submit_proposal.payload）
+    取各分支的完整字段，其余属性已由顶层声明，分支差异写入说明。
+    """
+    flat = dict(schema)
+    branches = flat.pop("oneOf", None)
+    if branches is None:
+        return flat, ""
+    properties = dict(flat["properties"])
+    for key, value in flat["properties"].items():
+        variants = [
+            branch["properties"][key] for branch in branches if key in branch.get("properties", {})
+        ]
+        if value.get("type") == "object" and "properties" not in value and variants:
+            properties[key] = {"anyOf": variants}
+    flat["properties"] = properties
+    return flat, "\n参数条件：" + "；\n".join(_branch_rule(branch) for branch in branches)
+
+
+def listed_tool(name: str, description: str, schema: dict[str, object], *, flat: bool) -> Tool:
+    rules = ""
+    if flat:
+        schema, rules = flat_tool_schema(schema)
+    return Tool(name=name, description=description + rules, input_schema=schema)
+
+
 def published_models() -> dict[str, object]:
     models = {
         key: value
@@ -797,7 +852,11 @@ def _debug_prefix(debug: bool) -> str:
 
 
 def create_server(
-    bridge: CoreBridge, *, proposal_directory: Path | None = None, debug: bool = False
+    bridge: CoreBridge,
+    *,
+    proposal_directory: Path | None = None,
+    debug: bool = False,
+    flat_tool_schemas: bool = False,
 ):
     models = project_models()
     listed_models = published_models()
@@ -857,10 +916,11 @@ def create_server(
     async def list_tools(_context, _params):
         return ListToolsResult(
             tools=[
-                Tool(
-                    name=name,
-                    description=descriptions[name],
-                    input_schema=published_tool_schema(name, model),
+                listed_tool(
+                    name,
+                    descriptions[name],
+                    published_tool_schema(name, model),
+                    flat=flat_tool_schemas,
                 )
                 for name, model in listed_models.items()
             ]
@@ -1144,17 +1204,20 @@ def playground_tool_schema(name: str, model: object) -> dict[str, object]:
     return _prune_schema(schema)
 
 
-def create_playground_server(bridge: CoreBridge, *, debug: bool = False):
+def create_playground_server(
+    bridge: CoreBridge, *, debug: bool = False, flat_tool_schemas: bool = False
+):
     """Playground scope 只发布 6 个工具，全部翻译成 playground.* 命令。"""
     models = dict(PLAYGROUND_MODELS)
 
     async def list_tools(_context, _params):
         return ListToolsResult(
             tools=[
-                Tool(
-                    name=name,
-                    description=PLAYGROUND_DESCRIPTIONS[name],
-                    input_schema=playground_tool_schema(name, models[name]),
+                listed_tool(
+                    name,
+                    PLAYGROUND_DESCRIPTIONS[name],
+                    playground_tool_schema(name, models[name]),
+                    flat=flat_tool_schemas,
                 )
                 for name in PLAYGROUND_TOOL_NAMES
             ]

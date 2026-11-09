@@ -197,13 +197,13 @@ def test_shared_image_is_reused_and_only_explicit_update_refreshes_dependencies(
 
     monkeypatch.setattr(launcher, "checked", checked)
     # 每个 Agent 的启动都查询同一个镜像；首次之后不重复构建。
-    for _agent in ("pi", "codex", "agy", "kimi", "dsh", "grok"):
+    for _agent in ("pi", "codex", "agy", "kimi", "dsh", "grok", "claude"):
         assert launcher.prepare_agent_image(tmp_path, tmp_path) == launcher.AGENT_IMAGE
     assert len(builds) == 1
     state["source"] = "changed-client-source"
     launcher.prepare_agent_image(tmp_path, tmp_path)
     assert len(builds) == 2
-    assert all("--no-cache" not in args and "--build-arg" not in args for args in builds)
+    assert all("--no-cache" not in args for args in builds)
     launcher.prepare_agent_image(tmp_path, tmp_path, update=True)
     assert len(builds) == 3
     assert "--no-cache" in builds[-1]
