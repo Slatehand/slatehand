@@ -45,6 +45,7 @@ DeepSeek Harness、Grok 与 Claude Code 通过官方 npm 包的 `@latest` 安装
 `--debug`（项目与 Playground 均可）让 `client.py start` 把 `/app/integrations/slatehand_mcp/debug_prompt.md` 放在 AGENTS.md
 最前面并在 startup.json 写入 `"debug": true`；`client.py mcp` 读到该标记后给 adapter 追加 `--debug`。
 `gateway.py` 只转发当前项目 Core 路径，并提供认证的公共 HTTPS CONNECT 隧道；拒绝非 443、私有/回环地址。
+转发 Core 请求时不设自己的请求体上限，按块流式转发，大小由 Core 按路由裁决并返回结构化 413。
 系统 DNS 返回非公网地址时，网关通过固定的 `https://1.1.1.1/dns-query` 重新解析 A 记录（标准 TLS 证书校验），
 处理本机代理的 Fake-IP；只有全部结果均为公网 IP 才连接已校验的具体地址。解析失败仍拒绝，不能直接放行虚拟私网地址。
 启动器优先读取 `HTTPS_PROXY`（兼容小写与 `HTTP_PROXY`）；变量未设置时，macOS 通过 `scutil --proxy`

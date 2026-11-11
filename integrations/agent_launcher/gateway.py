@@ -149,10 +149,10 @@ class Gateway(BaseHTTPRequestHandler):
         if not allowed:
             return self.reject(403)
         try:
+            # 请求体大小只由 Core 按路由裁决（超限返回结构化 413）；网关按块转发，不整体缓存。
             size = int(self.headers.get("Content-Length", "0"))
-            if not 0 <= size <= 65536:
-                return self.reject(413)
-            body = self.rfile.read(size)
+            if size < 0:
+                return self.reject(400)
             connection = http.client.HTTPConnection(
                 "host.docker.internal", int(os.environ["CORE_PORT"]), timeout=30
             )
@@ -160,9 +160,10 @@ class Gateway(BaseHTTPRequestHandler):
             headers = {
                 "Authorization": self.headers.get("Authorization", ""),
                 "Content-Type": "application/json",
+                "Content-Length": str(size),
             }
             try:
-                connection.request(self.command, path, body=body, headers=headers)
+                connection.request(self.command, path, body=self.body_chunks(size), headers=headers)
                 response = connection.getresponse()
                 self.send_response(response.status)
                 self.send_header(
@@ -179,6 +180,15 @@ class Gateway(BaseHTTPRequestHandler):
         except (OSError, ValueError, http.client.HTTPException):
             # 不重试、不打印请求/凭据。
             self.close_connection = True
+
+    def body_chunks(self, size):
+        remaining = size
+        while remaining:
+            chunk = self.rfile.read(min(65536, remaining))
+            if not chunk:
+                raise ConnectionError("请求体提前结束")
+            remaining -= len(chunk)
+            yield chunk
 
     def reject(self, status):
         self.send_response(status)

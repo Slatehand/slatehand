@@ -115,6 +115,7 @@ flowchart LR
 ```
 
 - 内部网络只有两类出口：当前项目的 Core application/Asset 路径，与公网 HTTPS 隧道（TLS 端到端透传，gateway 不解析模型协议、不读凭据）。
+- gateway 不设自己的请求体上限，按块把请求体转发给 Core；大小只由 Core 按路由裁决（application command ≤ 2 MiB），超限返回结构化 `request_too_large`。
 - 系统 DNS 返回非公网地址（本机代理的 Fake-IP）时，gateway 用固定的 `https://1.1.1.1/dns-query` 重新解析 A 记录；仍非公网则拒绝。
 - 启动器优先从宿主 `HTTPS_PROXY`（兼容小写与 `HTTP_PROXY`）读取代理；变量未设置时，macOS 从当前系统
   HTTPS/HTTP 代理读取。只接受无认证的本机 HTTP 代理，只向 gateway 传入端口。
