@@ -20,7 +20,7 @@ CONTRACTS = {
     "reference_library": (
         "reference_library",
         "slatehand-reference-library",
-        ("card-contract.md", "look-sheets.md"),
+        ("card-contract.md", "voice-descriptions.md", "look-sheets.md"),
     ),
     "script": (
         "structured_director_script",

@@ -326,3 +326,21 @@ def test_script_and_video_contracts_follow_the_framing_rules():
     assert "每个全景都能说出戏剧理由" in script
     video = read_contract("video_prompt")["resources"][0]["text"]
     assert "已选帧是起止画面的事实" in video
+
+
+def test_reference_library_contract_carries_voice_description_craft():
+    """音色描述从身份与用嗓经历写起，给声学特征与排除项，并以平静朗读收尾。"""
+    resources = read_contract("reference_library")["resources"]
+    text = {item["name"]: item["text"] for item in resources}
+    assert "references/voice-descriptions.md" in text["SKILL.md"]
+    assert "voice-descriptions.md" in text["references/card-contract.md"]
+    craft = " ".join(text["references/voice-descriptions.md"].split())
+    for required in (
+        "先写这是谁、怎样用嗓",
+        "听得出来的声学特征",
+        "写明排除项",
+        "不要换成某个现实语种的名称",
+        "不带英语口音",
+        "语速平稳均匀，语调平淡，无明显情绪起伏",
+    ):
+        assert required in craft, required

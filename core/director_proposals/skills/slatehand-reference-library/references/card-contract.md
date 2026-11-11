@@ -6,8 +6,8 @@
 - `visual_description`：跨镜头应保持的外形、服装、物种、年龄感和稳定物件；只写生成形象所需信息；
   非人类角色开头就写明“这是什么生物”与身体结构（肢体数量、体型尺度、质感），设定图据此决定画什么，
   写不清时容易被画成人形；
-- `voice_description`：仅供首次 AI 设计音色时预填的声音描述；没有依据时返回空字符串。它不是角色
-  卡公共展示字段，也不能替代用户选择的参考音色 Asset。
+- `voice_description`：首次 AI 设计音色时原样提交的音色描述，按 [voice-descriptions.md](voice-descriptions.md)
+  写；不出声的角色返回空字符串。它不是角色卡公共展示字段，也不能替代用户选择的参考音色 Asset。
 - `looks`：出镜角色 1–8 套造型，非出镜声音为空数组。每套：
   - `name`：简短可辨的造型名，如“校服”“受伤后”“加冕礼服”；同一角色内不重复；
   - `appearance`：这套造型的服装、发型、配饰与身体状态（伤痕、污渍、湿透等）；不重复
@@ -32,7 +32,7 @@
 画外旁白使用独立的 `narrator`。需要旁白时返回 `name`、`zh_voice_description` 和 `en_voice_description`；
 不需要旁白时返回 null。读取工作集 `narration_languages`：已选语言的音色描述非空，未选语言的描述必须为 null；不为未选语言设计音色：
 
-- `zh_voice_description`：中文旁白的音色描述（性别、年龄感、音高、质感、语速、情绪基调）；
+- `zh_voice_description`：中文旁白的音色描述，按 [voice-descriptions.md](voice-descriptions.md) 写；
 - `en_voice_description`：英文旁白的音色描述，与中文保持同一叙述者气质，但按英文朗读需要写明口音
   （如 British RP、General American）等英文特有要求；双语言时两段都必须非空，不能只复制中文描述。
 

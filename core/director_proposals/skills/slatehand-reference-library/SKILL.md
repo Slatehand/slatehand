@@ -12,7 +12,7 @@ description: 在 Slatehand 首次进入结构化导演台时，从已确认材�
 单独返回 narrator 音色身份，绝不能把“解说员”放进 characters。
 
 角色卡是 proposal。不要生成 ID，不要声称已保存，不要创建 `project.json`、Scene、Shot、Prompt、参考图或
-音频。画面角色必须给出简洁的稳定视觉描述；只有上游明确声音方向时才填写角色音色描述。
+音频。画面角色必须给出简洁的稳定视觉描述；在方案里开口说话的角色都要写音色描述，不出声的角色留空。
 非出镜声音仍在 characters 中分配稳定身份，visual_description 必须为 null，voice_description 必须非空；
 不伪造外貌或参考图片，不能放进 Shot/Keyframe 的 visible_character_ids。故事内声音可参与对白和 Ref2VA，
 不同于叙事旁白；没有叙事旁白时 narrator 必须为 null。
@@ -21,5 +21,6 @@ description: 在 Slatehand 首次进入结构化导演台时，从已确认材�
 每个出镜角色至少规划一套造型（look）：同一角色在不同时期、服装或身体状态下的外观各成一套，
 并写清这套造型用在故事的什么时期或场合。
 
-生成卡片前读取 [references/card-contract.md](references/card-contract.md)。引用库建立后增改造型、生成造型设定图时
+生成卡片前读取 [references/card-contract.md](references/card-contract.md) 与
+[references/voice-descriptions.md](references/voice-descriptions.md)。引用库建立后增改造型、生成造型设定图时
 读取 [references/look-sheets.md](references/look-sheets.md)。
