@@ -22,6 +22,7 @@ import {
   type VideoFrameInfo,
   ZoomableImage,
   assetById,
+  imageAssetName,
   imageAssets,
   toggleId,
 } from "./shared";
@@ -1225,7 +1226,7 @@ export function KeyframeSlot({
                     />
                   ) : null}
                   <span>
-                    第 {index + 1} 张 · @{assetId.slice(0, 6)}
+                    第 {index + 1} 张 · {imageAssetName(input)}
                   </span>
                 </div>
               );

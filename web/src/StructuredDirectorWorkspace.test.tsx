@@ -414,7 +414,7 @@ describe("StructuredDirectorWorkspace", () => {
     expect(
       screen.getByText("布偶猫哥哥站在窗边，午后自然光，保持蓝眼睛和白手套。"),
     ).toBeInTheDocument();
-    expect(within(promptDialog).getByText("@aaaaaa")).toBeInTheDocument();
+    expect(within(promptDialog).getByText("海岸参考")).toBeInTheDocument();
     expect(screen.getByAltText("生成图片候选大图")).toHaveAttribute(
       "src",
       "/candidate.png",
@@ -503,15 +503,27 @@ describe("StructuredDirectorWorkspace", () => {
               id: lookId, name: "日常", appearance: "蓝色外套", usage: "全片",
               selected_asset_id: null,
             }],
+          }, {
+            ...snapshot.reference_library.characters[0],
+            id: "8".repeat(32), name: "阿岩",
+            looks: [{
+              id: "7".repeat(32), name: "渔夫装", appearance: "旧雨衣", usage: "全片",
+              selected_asset_id: "a".repeat(32),
+            }],
           }],
         },
       },
     );
+    fireEvent.click(screen.getAllByRole("button", { name: "设置造型图" })[0]);
+    // 其它角色已选定的造型图也用“角色 · 造型”标注，不显示 Asset ID。
+    const generateTab = screen.getByRole("dialog", { name: "造型图：日常" });
+    expect(within(generateTab).getByText("造型图：阿岩 · 渔夫装")).toBeInTheDocument();
+    fireEvent.click(within(generateTab).getByRole("button", { name: "关闭造型图" }));
     const file = new File(["png-bytes"], "character.png", { type: "image/png" });
     const secondFile = new File(["png-bytes-2"], "character-2.webp", {
       type: "image/webp",
     });
-    fireEvent.click(screen.getByRole("button", { name: "设置造型图" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "设置造型图" })[0]);
     fireEvent.click(screen.getByRole("tab", { name: "从资产库选择" }));
     expect(screen.getByAltText("角色图片资产预览")).toHaveAttribute("src", "/asset.png");
     fireEvent.change(screen.getByLabelText("选择要加入资产库的本地图片"), {
@@ -523,12 +535,12 @@ describe("StructuredDirectorWorkspace", () => {
       "character_reference",
     );
     // 选择卡片角落的放大按钮只放大，不改变选择。
-    fireEvent.click(screen.getByRole("button", { name: "查看全图：@aaaaaa" }));
-    const fullImage = screen.getByRole("dialog", { name: "@aaaaaa全图" });
+    fireEvent.click(screen.getByRole("button", { name: "查看全图：造型图：阿岩 · 渔夫装" }));
+    const fullImage = screen.getByRole("dialog", { name: "造型图：阿岩 · 渔夫装全图" });
     expect(within(fullImage).getByRole("img")).toHaveAttribute("src", "/asset.png");
     expect(onSelectLookAsset).not.toHaveBeenCalled();
     fireEvent.click(within(fullImage).getByRole("button", { name: "关闭全图" }));
-    fireEvent.click(screen.getByRole("button", { name: "设为造型图 @aaaaaa" }));
+    fireEvent.click(screen.getByRole("button", { name: "设为造型图 造型图：阿岩 · 渔夫装" }));
     expect(onSelectLookAsset).toHaveBeenCalledWith("b".repeat(32), lookId, "a".repeat(32));
   });
   it("资产中心展示全部媒体，并只允许删除 Core 标记为未引用的 Asset", async () => {

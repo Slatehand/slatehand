@@ -699,6 +699,11 @@ export function assetById(
 ): ProjectAsset | null {
   return assets.find((asset) => asset.id === id) ?? null;
 }
+/** 给人看的图片名：Core 的可读文件名（去扩展名），不显示 Asset ID。 */
+export function imageAssetName(asset: ProjectAsset | null): string {
+  if (asset === null) return "已删除的图片";
+  return asset.display_name?.replace(/\.[^.]+$/, "") || "项目图片";
+}
 export function imageAssets(
   assets: ProjectAsset[],
   category?: ImageAssetCategory,

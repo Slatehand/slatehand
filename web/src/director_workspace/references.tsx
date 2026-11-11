@@ -38,6 +38,7 @@ import {
   TextField,
   assetById,
   cardGenerations,
+  imageAssetName,
   imageAssets,
   isSupportedImageType,
   toggleId,
@@ -394,11 +395,14 @@ function LookImageDialog({
   const importInput = useRef<HTMLInputElement>(null);
   const available = snapshot.provider_availability.image_generation;
   const candidates = imageAssets(snapshot.assets, "character_reference");
-  const lookImages = new Map(card.looks.flatMap((item) =>
-    item.selected_asset_id === null ? [] : [[item.selected_asset_id, item.name] as const]));
+  // 任一角色已选定的造型图都标成“角色 · 造型”，其余图片用 Core 的可读文件名，不显示 Asset ID。
+  const lookImages = new Map(snapshot.reference_library.characters.flatMap((character) =>
+    character.looks.flatMap((item) => item.selected_asset_id === null ? []
+      : [[item.selected_asset_id, `${character.name} · ${item.name}`] as const])));
   const titleId = `look-image-${look.id}`;
-  const assetLabel = (assetId: string) =>
-    lookImages.has(assetId) ? `造型：${lookImages.get(assetId)}` : `@${assetId.slice(0, 6)}`;
+  const assetLabel = (assetId: string) => lookImages.has(assetId)
+    ? `造型图：${lookImages.get(assetId)}`
+    : imageAssetName(assetById(snapshot.assets, assetId));
   return <div className="reference-image-dialog-backdrop" role="presentation">
     <DismissibleDialog onClose={onClose} className="reference-image-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <header className="reference-image-dialog-header">

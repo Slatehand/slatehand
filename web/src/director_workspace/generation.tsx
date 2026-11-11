@@ -15,6 +15,7 @@ import type {
 import {
   GenerationCandidateList,
   assetById,
+  imageAssetName,
 } from "./shared";
 
 export function GenerationCandidates({
@@ -124,7 +125,7 @@ export function GenerationCandidates({
                   const input = assetById(assets, assetId);
                   return <div key={assetId} className="generation-prompt-input">
                     {input ? <ZoomableImage src={input.content_url} alt="生成时使用的参考图" /> : null}
-                    <span>@{assetId.slice(0, 6)}</span>
+                    <span>{imageAssetName(input)}</span>
                   </div>;
                 })}</div>
               )}
