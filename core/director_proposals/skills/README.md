@@ -25,7 +25,7 @@ Segment 辅助参考的 Asset 才进入生图。景别或机位不能服务镜�
 `references/cinematic-keyframe-design.md` 讲连续过程、景别与重心、从 Shot 推导空间与正反打背景，
 `references/cinematic-frame-prompting.md` 讲静态画面正文怎么写：地点事实、受力定点、光学和情绪。
 
-视频入口 `slatehand-video-prompt` 读取当前 recipe 工作集与 `context.shots`（多 Shot Segment 的段内切镜按顺序写成软约束，首尾 Picture 只锚定首末 Shot）；当前视频插件的专业 Skill 随插件发布，经契约 `plugin/` 资源交付。
+视频入口 `slatehand-video-prompt` 读取当前 recipe 工作集、`context.shots` 与 `character_visuals`：优先使用多参考 recipe（Ref2VA），FL2VA 只在无需额外参考且首尾帧已完整呈现全部角色所需外观或纯空镜时才考虑；对首尾帧未覆盖的切镜/入画角色或首尾帧仅拍到局部而后续拉远露全身/正脸的角色，主动切到多参考 recipe 并绑入对应角色造型图；多 Shot Segment 的段内切镜按顺序写成软约束，首尾 Picture 只锚定首末 Shot。当前视频插件的专业 Skill 随插件发布，经契约 `plugin/` 资源交付。
 
 歌曲入口 `slatehand-song-prompt` 是只读能力（`CONTRACT_ONLY`）：只有契约、没有工作集与 proposal。用户在项目对话里要求写歌时，
 Agent 结合项目上下文按契约 `plugin/` 下当前文生音频插件的 Skill 编写参数，只在对话中交付，

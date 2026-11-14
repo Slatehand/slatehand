@@ -1171,3 +1171,134 @@ def test_video_workset_lists_all_covering_shots_and_continuation_flags(tmp_path)
         assert next_context["segment"]["continues_into_next_segment"] is False
 
     asyncio.run(run())
+
+
+def test_video_workset_flags_cutaway_character_until_look_sheet_is_bound(tmp_path):
+    """段内切镜或中途入画但不在启用关键帧中的角色，在绑定造型图前列入 unanchored_characters。"""
+    from structured_director_fixtures import png_header_bytes
+
+    from core.structured_director.models import CharacterLook
+    from core.structured_director.video_inputs import video_inputs_digest
+
+    async def run():
+        store, service, document, _ = await fixture(tmp_path)
+        document = await service.import_image_asset(
+            media_type="image/png",
+            content=png_header_bytes("look-second"),
+            category=ImageAssetCategory.CHARACTER_REFERENCE,
+            expected_revision=document.revision,
+        )
+        second_look_asset = document.assets[-1].id
+        look_id = "b" * 32
+        second_card = document.reference_library.characters[1]
+        document = await service.update_character(
+            replace(
+                second_card,
+                looks=(CharacterLook(look_id, "常服", "穿红色外套的全身设定。", "日常出镜"),),
+            ),
+            expected_revision=document.revision,
+            created_look_ids=frozenset({look_id}),
+        )
+        document = await service.select_look_asset(
+            card_id=second_card.id,
+            look_id=look_id,
+            asset_id=second_look_asset,
+            expected_revision=document.revision,
+        )
+        scene = document.director_script.scenes[0]
+        first, second = scene.shots
+        segment = scene.segments[0]
+        characters = document.reference_library.characters
+        first_visible, second_visible = characters[0].id, characters[1].id
+        first = replace(first, visible_character_ids=(first_visible,))
+        second = replace(second, visible_character_ids=(second_visible,))
+        segments = (
+            replace(segment, shot_ids=(first.id, second.id), duration_estimate_seconds=6.0),
+        )
+        document = await service.save_script(
+            (
+                replace(scene, shots=(first, second), segments=segments),
+                *document.director_script.scenes[1:],
+            ),
+            expected_revision=document.revision,
+        )
+        # 单首帧只画第一个角色，尾帧关闭（模拟切镜前单首帧）。
+        boundary = next(x for x in document.keyframe_plan.segments if x.segment_id == segment.id)
+        document = (
+            DirectorCommandRegistry(store)
+            .execute(
+                DirectorCommand(
+                    "keyframe.apply_operations",
+                    document.revision,
+                    "cutaway-kf",
+                    {
+                        "operations": [
+                            {
+                                "op": "set_activation",
+                                "segment_id": segment.id,
+                                "start_enabled": True,
+                                "end_enabled": False,
+                            },
+                            {
+                                "op": "update_frame_fields",
+                                "keyframe_id": boundary.start_keyframe_id,
+                                "fields": {
+                                    "prompt_text": "切镜前单首帧",
+                                    "visible_character_ids": [first_visible],
+                                },
+                            },
+                        ]
+                    },
+                )
+            )
+            .document
+        )
+        document = await service.import_image_asset(
+            media_type="image/png",
+            content=b"\x89PNG\r\n\x1a\ncutaway-start",
+            category=ImageAssetCategory.KEYFRAME,
+            expected_revision=document.revision,
+        )
+        document = await service.select_keyframe(
+            keyframe_id=boundary.start_keyframe_id,
+            asset_id=document.assets[-1].id,
+            expected_revision=document.revision,
+        )
+
+        visuals = video_prompt_workset(document, segment.id)["character_visuals"]
+        assert [item["name"] for item in visuals["characters"]] == [
+            characters[0].name,
+            characters[1].name,
+        ]
+        assert [item["in_enabled_keyframes"] for item in visuals["characters"]] == [True, False]
+        assert visuals["characters"][1]["bound_labels"] == []
+        second_look_asset = characters[1].looks[0].selected_asset_id
+        assert second_look_asset is not None
+        assert visuals["characters"][1]["looks"][0]["selected_asset_id"] == second_look_asset
+        assert visuals["unanchored_characters"] == [characters[1].name]
+        assert video_inputs_digest(document, segment.id, provider_catalog=service._registry)[
+            "unanchored_characters"
+        ] == [characters[1].name]
+
+        # 绑定第二个角色的已选造型图后，unanchored_characters 清零并给出对应 <Picture N> 标签。
+        document = await save_video_inputs(
+            service,
+            segment_id=segment.id,
+            expected_revision=document.revision,
+            prompt_text="切镜后保持第二位角色造型一致。",
+            additional_image_references=(
+                SegmentVideoImageReference(second_look_asset, "第二位角色的造型图"),
+            ),
+            audio_references=dialogue_audio_bindings(document, segment.id),
+        )
+        anchored = video_prompt_workset(document, segment.id)["character_visuals"]
+        assert anchored["characters"][1]["bound_labels"] == ["<Picture 2>"]
+        assert anchored["unanchored_characters"] == []
+        assert (
+            video_inputs_digest(document, segment.id, provider_catalog=service._registry)[
+                "unanchored_characters"
+            ]
+            == []
+        )
+
+    asyncio.run(run())

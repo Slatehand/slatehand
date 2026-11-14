@@ -359,10 +359,10 @@ Core 不自动选择。关键帧卡显示“建议复用 @来源”，提供“�
 
 **视频 recipe**（下表是默认部署 slatehand-providers-example 的视频插件；其它插件按各自 manifest）：
 
-| 模式 | 默认场景 | 输入 |
+| 模式 | 适用场景 | 输入 |
 | --- | --- | --- |
-| `minimax_h3.fl2va` | 无对白 | 启用且已选的首/尾帧 + 提示词正文 |
-| `minimax_h3.ref2va` | 有对白 | 可选首/尾帧 + 可选 ≤4 张其他图片（`additional_images`）+ 显式加入的已选对白 WAV 与手动参考音频（合计 ≤8）+ 可选 ≤3 条参考视频 + 提示词正文；五类媒体槽位至少有一项 |
+| `minimax_h3.ref2va` | 默认推荐 | 可选首/尾帧 + 可选 ≤4 张其他图片（`additional_images`）+ 显式加入的已选对白 WAV 与手动参考音频（合计 ≤3）+ 可选 ≤3 条参考视频 + 提示词正文；五类媒体槽位至少有一项 |
+| `minimax_h3.fl2va` | 无需额外参考 | 启用且已选的首/尾帧 + 提示词正文（无对白、无音频/视频参考，且首尾帧已完整呈现所需角色全貌或纯空镜时选用） |
 
 默认规则、可用槽位和参数由当前绑定插件的 manifest 声明。视频卡按 recipe 渲染，切换前由 Core 校验；每个 recipe 的机制参数与显式输入独立保存。含对白 Segment 不能切换到不支持参考音频的 FL2VA；无对白 Segment 切回 FL2VA 前必须先清空全部其他图片、音频与视频引用。参考音频列表是实际提交的完整输入。“一键添加本段对白 TTS”要求每句均已选 WAV，按剧本顺序覆盖对应旧条目并保留其他手动参考；重复点击不增加重复音频，合计超限则整次拒绝，添加后需保存视频计划。本段对白句数本身超过参考音频上限时，投影的 `dialogue_audio.error` 预先提示拆分 Segment 或只手动绑定其中几句；脚本 Skill 打包时就按脚本工作集 `video_packing.dialogue_audio_maximum` 规划每个 Segment 的对白句数，Core 不拒绝脚本写入。说明包含说话人、原台词、真实时长与严格应用对白的要求。Core 只提交已保存列表，不隐式补齐；已选对白 TTS 未出现在参考音频中时，视频卡与工作集 `dialogue_audio.unbound_lines` 软提示，仍可生成；换选 TTS 只刷新已经显式加入的对应引用。手动参考的用途由用户描述决定，不从角色卡参考音频自动推导。参考视频只作视觉参考（运镜、节奏、续写），其音轨不会自动成为音频参考。
 
@@ -376,7 +376,7 @@ Core 不自动选择。关键帧卡显示“建议复用 @来源”，提供“�
 **Agent 保存 recipe 输入**：外部 Agent 与人类走同一条 `video.update_recipe_inputs`，原子保存正文、当前 recipe 的 `bindings`
 与机制 `params`（MCP `save_video_prompt` 带 `recipe_inputs`）。媒体校验共用：manifest 槽位、数量、媒体类型、视频时长、说明必填、
 不重复、只引用本项目 Asset、进行中任务冲突与 revision。`video_prompt` 工作集给出槽位声明、已保存输入（`recipe_inputs`，
-按槽位、按键合并：给出的槽位整体替换，未给出的保留）、可绑定 Asset（`bindable_assets`）与参数声明；Agent 只在用户明确要求时增删或替换绑定。
+按槽位、按键合并：给出的槽位整体替换，未给出的保留）、可绑定 Asset（`bindable_assets`）、本段可见角色锚定状态（`character_visuals`）与参数声明；Agent 优先使用多参考 recipe，对首尾帧未出现或仅见局部的可见角色主动绑入角色造型图，其它非角色手工参考与机制参数只在用户明确要求时增删或替换。
 含对白 Segment 生成前每句对白必须已选 TTS；是否把它们加入参考音频由用户决定，未加入只软提示。命令带 `attach_dialogue_audio: true` 时，Core 按与 Web“一键添加本段对白 TTS”相同的规则合并进参考音频列表。
 视频候选选择与清除选择仍只属于人类。
 

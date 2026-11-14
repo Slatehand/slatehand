@@ -11,7 +11,12 @@ from core.model_providers.recipe import SlotBinding, binding_labels
 
 from .models import ReferenceGenerationKind as Kind
 from .models import ReferenceGenerationPhase as Phase
-from .script_index import find_segment, scene_segments, shot_segments
+from .script_index import (
+    find_segment,
+    scene_segments,
+    segment_visible_character_ids,
+    shot_segments,
+)
 from .video_contracts import VideoInputSnapshot
 
 TERMINAL = {Phase.SUCCEEDED, Phase.FAILED, Phase.CANCELLED}
@@ -426,6 +431,84 @@ def start_frame_extraction_source(document, keyframe_id):
     return result
 
 
+def character_visuals(document, segment_id: str, labels: list[dict]) -> dict[str, object]:
+    """本段可见角色的造型资产与视频视觉锚定状态，供视频提示词工作集与保存回执自查。
+
+    ``in_enabled_keyframes`` 只反映角色是否登记在已启用的首尾关键帧上；关键帧只拍到局部/背影、
+    后续镜头拉远露全身或正脸时，仍由 Agent 看图后把对应造型的 ``selected_asset_id`` 绑入附加图片。
+    ``unanchored_characters`` 列出既不在已启用首尾帧中、也未在附加图片里绑定造型图或该角色关键帧图的
+    可见角色。
+    """
+    scene, segment = find_segment(document.director_script.scenes, segment_id)
+    visible_ids = segment_visible_character_ids(scene, segment.id)
+    boundary = binding_for(document, segment_id)
+    frames = (
+        {}
+        if document.keyframe_plan is None
+        else {item.id: item for item in document.keyframe_plan.keyframes}
+    )
+    keyframe_character_ids: set[str] = set()
+    if boundary is not None:
+        for enabled, frame_id in (
+            (boundary.start_enabled, boundary.start_keyframe_id),
+            (boundary.end_enabled, boundary.end_keyframe_id),
+        ):
+            if enabled and frame_id in frames:
+                keyframe_character_ids.update(frames[frame_id].visible_character_ids)
+    bound_image_labels = [
+        (item["asset_id"], item["label"])
+        for item in labels
+        if item["role"] == "reference_image" and item["label"] is not None
+    ]
+    keyframe_assets_by_character: dict[str, set[str]] = {}
+    for frame in frames.values():
+        if frame.selected_asset_id is not None:
+            for character_id in frame.visible_character_ids:
+                keyframe_assets_by_character.setdefault(character_id, set()).add(
+                    frame.selected_asset_id
+                )
+    cards = {item.id: item for item in document.reference_library.characters}
+    characters = []
+    for character_id in visible_ids:
+        card = cards.get(character_id)
+        if card is None:
+            continue
+        look_assets = {
+            look.selected_asset_id for look in card.looks if look.selected_asset_id is not None
+        }
+        anchor_assets = look_assets | keyframe_assets_by_character.get(character_id, set())
+        bound_labels = list(
+            dict.fromkeys(
+                label for asset_id, label in bound_image_labels if asset_id in anchor_assets
+            )
+        )
+        characters.append(
+            {
+                "character_id": card.id,
+                "name": card.name,
+                "in_enabled_keyframes": card.id in keyframe_character_ids,
+                "bound_labels": bound_labels,
+                "looks": [
+                    {
+                        "look_id": look.id,
+                        "name": look.name,
+                        "usage": look.usage,
+                        "selected_asset_id": look.selected_asset_id,
+                    }
+                    for look in card.looks
+                ],
+            }
+        )
+    return {
+        "characters": characters,
+        "unanchored_characters": [
+            item["name"]
+            for item in characters
+            if not item["in_enabled_keyframes"] and not item["bound_labels"]
+        ],
+    }
+
+
 def video_inputs_digest(document, segment_id: str, *, provider_catalog) -> dict[str, object]:
     """``video.update_recipe_inputs`` 写入后的紧凑结果，Agent 无需重读整份工作集即可自查。"""
     video = next(item for item in document.video_plan.segments if item.segment_id == segment_id)
@@ -450,12 +533,14 @@ def video_inputs_digest(document, segment_id: str, *, provider_catalog) -> dict[
     dialogue = dialogue_audio_addition(
         document, segment_id, recipe, dict(video.recipe_inputs.bindings)
     )
+    visuals = character_visuals(document, segment_id, labels)
     return result | {
         "asset_inputs": [{"label": item["label"], "asset_id": item["asset_id"]} for item in labels],
-        # 绑定已在 recipe_inputs 中；这里只回报仍未绑定的对白与错误。
+        # 绑定已在 recipe_inputs 中；这里只回报仍未绑定的对白、未锚定的可见角色与错误。
         "dialogue_audio": (
             None if dialogue is None else {key: dialogue[key] for key in ("error", "unbound_lines")}
         ),
+        "unanchored_characters": visuals["unanchored_characters"],
         # 与工作集同一 linter 的软提示，不阻止生成。
         "prompt_problems": (
             provider_catalog.lint_prompt(

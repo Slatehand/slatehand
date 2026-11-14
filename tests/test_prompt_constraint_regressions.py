@@ -344,3 +344,35 @@ def test_reference_library_contract_carries_voice_description_craft():
         "语速平稳均匀，语调平淡，无明显情绪起伏",
     ):
         assert required in craft, required
+
+
+def test_video_and_keyframe_contracts_prioritize_ref2va_and_proactive_character_look_binding():
+    """优先推荐 Ref2VA；段内切镜/中途入画或局部关键帧拉全身时主动绑角色造型图，不再等用户点名。"""
+    video = read_contract("video_prompt")["resources"][0]["text"]
+    keyframe = read_contract("keyframe")["resources"][0]["text"]
+    launcher = (
+        Path(__file__).resolve().parents[1] / "integrations/agent_launcher/PROMPT.md"
+    ).read_text()
+    for text in (video, launcher):
+        for required in (
+            "Ref2VA",
+            "确实没必要用 Ref2VA",
+            "character_visuals",
+            "unanchored_characters",
+            "set_video_recipe",
+            "select_reference_image",
+        ):
+            assert required in text, required
+    assert "首尾帧只有该角色的局部" in video
+    assert "首尾帧只有手部/背影/侧影/局部遮挡" in launcher
+    assert "视频阶段须用 Ref2VA 绑入对应角色造型图" in keyframe
+
+    combined = "\n".join((video, keyframe, launcher))
+    for stale in (
+        "Ref2VA 时优先建议用户为可见角色绑定造型图，但只在用户明确要求时改绑定",
+        "使用多参考 recipe 时优先建议用户为可见角色绑定造型图，但只在用户明确要求时改绑定",
+        "除对白 TTS 外，只在用户本轮明确要求时绑定",
+        "当前 recipe 没有所需槽位时先说明，经用户同意再用 `video.set_recipe` 切换",
+        "规划阶段不能自动切换 recipe",
+    ):
+        assert stale not in combined, stale

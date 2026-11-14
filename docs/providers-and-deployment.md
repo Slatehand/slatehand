@@ -96,7 +96,7 @@ Core 自己只提供下文的确定性工具。
 | `voice.design` / `speech.synthesize` | `breeze_tts2`（`breeze_tts2.voice_design` / `breeze_tts2.clone`） | Windows :8791（按需拉起） | 音色设计、旁白 TTS、Voice Clone / Direction |
 | `speech.synthesize` | `indextts2`（`indextts2.synthesize`） | Windows :8791（按需拉起 WSL） | 参考 WAV 克隆，语速与八维情感 |
 | `speech.recognize` | `whisper_asr`（`whisper_asr.transcribe`） | 本机 whisper.cpp :8793 | 参考音色文字稿转写（仅人类按钮） |
-| `video.generate` | `minimax_h3`（`minimax_h3.fl2va` 首尾帧视频 / `minimax_h3.ref2va` 参考视频） | Windows :8791 | Segment 视频；有对白默认 Ref2VA |
+| `video.generate` | `minimax_h3`（`minimax_h3.ref2va` 参考视频，默认 / `minimax_h3.fl2va` 首尾帧视频） | Windows :8791 | Segment 视频；默认 Ref2VA |
 | `video.upscale` | `seedvr2_7b_sharp_fp8`（设置档位 720p / 1080p，原视频已接近档位时拒绝） | Windows :8791 | 视频超分 |
 | `audio.generate` | `stable_audio_3`（默认）或 `yue2`（`yue2.generate`，YuE2-3B 歌曲生成） | Windows :8791 | 文生音频，仅 Playground |
 | `audio.separate` | `demucs_audio` | Mac :8792 | 人声 / 背景分离 |

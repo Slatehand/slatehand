@@ -238,7 +238,7 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
     `context.shots` 按覆盖顺序列出 Segment 的每个 Shot（构图、运镜、动作、声音、可见角色名与视图建议名）；
     `segment.continues_from_previous_segment` / `continues_into_next_segment` 表示相邻 Segment 共享边界 Shot 的延续关系；
     `segment.dialogue[]` 的 `on_screen` 为 null 表示引用库外的临时说话者）、`dialogue_timing`（已选 WAV 的真实起点、时长与最晚结束时间，以及首句前 `lead_seconds`、末句后 `tail_seconds` 余量与不足 0.5 秒时的 `breathing_hints` 软提示；段尾按插件实际输出时长计算；未完成 TTS 时明确标记未就绪）、插件可在 `context` 中给出实际输出时长（H3 为 `output_duration_seconds`：请求时长向上取到模型帧网格后的成片长度）、`prompt_dialogue`（按剧本顺序的说话者、原台词与实际 `audio_label`；台词只能按插件 Skill 写进正文一次）、`prompt_problems`（插件检查已保存正文得到的格式问题，只是软提示、不阻止生成）、`asset_inputs`、`plugin_skills`（插件 Skill 目录，
-    全文在 `video_prompt` 契约中），以及 `recipe_inputs`（已保存的 `{bindings, params}`；`save_video_prompt.recipe_inputs` 只需给出要改的槽位与参数）与
+    全文在 `video_prompt` 契约中）、`character_visuals`（本段可见角色的造型资产、是否出现在已启用首尾帧、已绑定参考图标签及完全未锚定的角色清单 `unanchored_characters`），以及 `recipe_inputs`（已保存的 `{bindings, params}`；`save_video_prompt.recipe_inputs` 只需给出要改的槽位与参数）与
     `bindable_assets`（当前 recipe 显式槽位可接受的项目 Asset：`asset_id`、`name`、`media_type`、`duration_seconds`、`slots`；
     只列导入素材、引用库与地点库已选资源、本 Scene 已选的关键帧/旁白/视频与显式媒体参考）。标签按 manifest namespace 由 Core 计算，绑定变化后重读
     工作集取新标签；插件只转换自己的专业格式。软时长提示来自插件 hints，超过只提示、不拒绝；缺帧直接拒绝。
@@ -311,7 +311,7 @@ sequenceDiagram
 4. 不对 `submission_uncertain` 自动重试；不靠新生成绕过未确认的取消。核查后按用户意图显式 retry，或用 `manage_generation(action="dismiss")` 放弃，
    二者都会让它退出活动任务。
 5. 生成、选择、批准是三件事：Agent 只做生成与观察，提醒用户在 Web 中采用与批准；地点图片同样只能由人类选择。
-6. Segment 视频的参考素材与机制参数只在用户明确要求时增删或替换，只提交要改的槽位；含对白 Segment 用 `attach_dialogue_audio` 添加对白 TTS。
+6. Segment 视频优先使用多参考 recipe（Ref2VA），FL2VA 只在无需额外参考且已选首尾帧已完整呈现全部角色所需外观或纯空镜时才考虑；含对白 Segment 用 `attach_dialogue_audio` 添加对白 TTS，首尾帧未覆盖或只拍到局部而后续拉远露全身/正脸的可见角色主动绑入对应角色造型图（必要时先切到 Ref2VA）；其它非角色造型的手工参考与机制参数只在用户明确要求时修改，只提交要改的槽位。
 7. 查看项目图片只用 `read_media_input`，直接以 Agent 原生多模态视觉能力判读；不调用 ffmpeg、ImageMagick、Python/PIL 等命令行工具
    抽取、转码或分析图片。读取被拒绝时如实报告原因，不自行绕道。当前模型没有多模态视觉能力或看不到图片时，
    告知用户并请其提供各图的内容、参考用途和保留/修改要求；已有充分说明时可据此编写并说明信息来源，缺必要说明则暂停相关提示词编写与生成。

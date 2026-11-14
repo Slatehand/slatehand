@@ -22,7 +22,12 @@ from .script_index import (
     segment_shots,
     segment_visible_character_ids,
 )
-from .video_inputs import actual_video_labels, dialogue_audio_addition, video_prompt_facts
+from .video_inputs import (
+    actual_video_labels,
+    character_visuals,
+    dialogue_audio_addition,
+    video_prompt_facts,
+)
 
 
 def video_prompt_workset(
@@ -151,6 +156,7 @@ def video_prompt_workset(
         "dialogue_audio": dialogue_audio_addition(
             document, segment_id, recipe, dict(video.recipe_inputs.bindings)
         ),
+        "character_visuals": character_visuals(document, segment_id, labels),
         # 插件 Skill 规定对白在正文中的写法；Core 原样提交正文，不前置任何文字。
         "prompt_dialogue": facts["dialogue"],
         "video_inputs": [

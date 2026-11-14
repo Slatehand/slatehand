@@ -143,8 +143,7 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
   用户同意后再拆，坚持不拆则照常生成。这只是提示词约束，Core 不校验 Shot 的 Segment 数量。
   同理，每个 Segment 的对白不超过当前视频插件参考音频上限（脚本工作集 `video_packing.dialogue_audio_maximum`）是脚本打包软约束：超出时工作集
   `dialogue_audio.error` 提示拆分，Core 不拒绝脚本写入，只按槽位上限拒绝超额绑定。
-- Segment 的 `active_recipe` 来自当前视频插件的 `defaults` 与 `segment.has_dialogue` 谓词（默认部署：无对白
-  FL2VA、有对白 Ref2VA）。人类可切换 recipe，Core 保存输入簿并校验已有输入与目标 recipe 的兼容性。
+- Segment 的 `active_recipe` 来自当前视频插件的 `defaults` 与 `segment.has_dialogue` 谓词（默认部署：默认 Ref2VA；FL2VA 只在无需任何额外参考、单靠已选首尾帧即可完整表达时选用）。人类与 Agent 可切换 recipe，Core 保存输入簿并校验已有输入与目标 recipe 的兼容性。
   多参考 recipe 由插件声明附加图片、WAV 参考音频与 MP4 参考视频槽位的数量、时长与说明要求（默认部署 Ref2VA：0–4 张图片、0–3 条音频、0–3 条 2–15 秒视频，首尾帧都可为空，但所有媒体槽位合计至少一项，有引用时均不重复且必填说明）；音频引用不会从角色卡
   自动推导，视频只作视觉参考、不引入其音轨。Core 按稳定顺序生成 Picture/Audio/Video 各自独立从 1 起的标签，
   并与 Provider 输入保持一致。切换 recipe 前必须清空目标 recipe 不支持的参考槽位。
@@ -154,7 +153,7 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
 - 语义角色参数由 Core 根据领域事实填写；没有角色的机制参数按 recipe 保存。旁白使用 `recipe_params[recipe_id]`，
   视频使用 `recipes[recipe_id].params`；Web 按声明渲染控件，Agent 按 `speech_recipe` 或 `video_prompt` 工作集填写。
   Agent 与人类经同一 `video.update_recipe_inputs` 原子保存视频正文、当前 recipe 的参考素材绑定与机制参数，校验相同；
-  Agent 只在用户明确要求时增删或替换绑定；绑定按槽位、参数按键合并，未给出的部分保持原样。含对白 Segment 以
+  Agent 优先使用多参考 recipe（Ref2VA），对首尾帧未出现或仅拍到局部而后续需露全身/正脸的可见角色主动补齐角色造型图（必要时先切到 Ref2VA），其它手工参考素材与机制参数只在用户明确要求时增删或替换；绑定按槽位、参数按键合并，未给出的部分保持原样。含对白 Segment 以
   `attach_dialogue_audio` 由 Core 按“一键添加本段对白 TTS”同一规则合并对白 WAV；Core 原样提交已保存正文、不追加对白约束；视频插件的提示词 linter 只在工作集 `prompt_problems` 中软提示格式问题，不阻止生成。
   音色描述仍是领域字段，映射到 prompt 角色。表演指示、语速与情感向量等属于各自插件的机制参数。
 - 每个媒体能力的插件绑定与实例设置是 Core 全局 Provider 设置，项目与 Playground 共用、只有人类可改；每次提交读取
