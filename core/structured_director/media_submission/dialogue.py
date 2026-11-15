@@ -177,15 +177,16 @@ class DialogueSubmission:
                 raise ValueError("该说话者没有参考音色，请先填写音色描述以使用 Voice Design。")
             if mechanism:
                 raise ValueError("Voice Design 对白不能携带语音克隆机制参数。")
+            prompt = _voice_design_dialogue_prompt(description, line.delivery)
             request, submitted = prepared.request(
                 roles={
-                    Role.PROMPT: description,
+                    Role.PROMPT: prompt,
                     Role.SPEECH_TEXT: line.text,
                     Role.SEED: seed,
                 }
             )
             operation = GenerationOperation.VOICE_DESIGN
-            sample_text = description
+            sample_text = prompt
             input_asset_ids = ()
 
         generation = ReferenceGeneration(
@@ -215,6 +216,20 @@ class DialogueSubmission:
             submit=lambda: prepared.submit(request),
             capability=f"{prepared.plugin.manifest.label} 对白 TTS",
         )
+
+
+def _voice_design_dialogue_prompt(description: str, delivery: str) -> str:
+    """Voice Design 一步完成音色与本句表演：音色描述在前，剧本表演要求在后并覆盖其中的朗读状态。
+
+    角色卡音色描述按参考音录制要求以“语调平淡”类句子收尾；直接朗读剧情台词时，
+    本句表演要求必须优先于这类中性朗读状态，否则模型会按平淡基线念高潮戏。
+    """
+    performance = delivery.strip()
+    if not performance:
+        return description
+    return (
+        f"{description}\n\n本句表演（以此为准，覆盖上文关于语速、语调与情绪的描述）：{performance}"
+    )
 
 
 def _random_dialogue_seed(document: StructuredDirectorDocument, *, reserved: int) -> int:

@@ -124,7 +124,9 @@ Store 拒绝任何让某层从 true 变回 false 的写入。上游回改只清�
 `speaker_label`（≤ 60 字称呼）与必填 `voice_description`（≤ 500），表示引用库外的临时或画外说话者；视频工作集里
 `on_screen = null`，是否入画以 Segment `action` 为准。每句 `DialogueLine` 由 Core 分配全项目唯一的稳定 `id`。
 引用库角色有参考音色时，对白 TTS 强制使用同一角色的参考 WAV 和完整文字稿克隆；没有参考音色时使用角色卡的
-`voice_description` 做 Voice Design；引用库外说话者使用该句的 `voice_description` 做 Voice Design。
+`voice_description` 做 Voice Design；引用库外说话者使用该句的 `voice_description` 做 Voice Design。Voice Design
+对白一步完成音色与表演：提交的音色描述是本嗓描述后接该句 `delivery`，并注明以本句表演为准、覆盖描述中的朗读状态；
+`delivery` 为空时只提交本嗓描述。实际提交的完整描述记录在 Generation 的 `sample_text`。
 
 ## 结构化脚本
 

@@ -40,8 +40,15 @@ def test_character_dialogue_uses_voice_design_without_reference_and_clone_with_r
         design_card = designed.reference_library.characters[0]
         assert design_generation.operation is GenerationOperation.VOICE_DESIGN
         assert design_generation.input_asset_ids == ()
-        assert design_generation.sample_text == design_card.voice_description
+        assert design_line.delivery.strip()
+        expected_prompt = (
+            f"{design_card.voice_description}\n\n"
+            "本句表演（以此为准，覆盖上文关于语速、语调与情绪的描述）："
+            f"{design_line.delivery.strip()}"
+        )
+        assert design_generation.sample_text == expected_prompt
         assert len(design_provider.requests) == 1
+        assert design_provider.requests[0].param("voice_description") == expected_prompt
         assert clone_provider.requests == []
 
         (tmp_path / "clone").mkdir()
@@ -743,3 +750,14 @@ def _bind_dialogue_audio(service, document):
             },
         )
     ).document
+
+
+def test_voice_design_dialogue_prompt_appends_delivery_only_when_present():
+    from core.structured_director.media_submission.dialogue import _voice_design_dialogue_prompt
+
+    description = "三十岁男声，中低音区。语速平稳均匀，语调平淡，无明显情绪起伏。"
+    assert _voice_design_dialogue_prompt(description, "  ") == description
+    prompt = _voice_design_dialogue_prompt(description, " 嘶哑破音，拖长尾音呐喊。 ")
+    assert prompt.startswith(description + "\n\n")
+    assert prompt.endswith("：嘶哑破音，拖长尾音呐喊。")
+    assert "覆盖上文关于语速、语调与情绪的描述" in prompt

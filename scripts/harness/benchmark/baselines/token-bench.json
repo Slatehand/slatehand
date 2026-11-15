@@ -11,7 +11,7 @@
   },
   "environment": {
     "date": "2026-11-15",
-    "git_sha": "b5d673e458bd63e9c57f2ab23a44001947067d02",
+    "git_sha": "c911839eeaece9fd4f1a382447b501b42a92b5a4",
     "python_version": "3.12.12",
     "platform": "macOS-26.6.2-arm64-arm-64bit",
     "driver": "scripts/harness/benchmark/fake_agent_driver.py"
@@ -35,10 +35,10 @@
         "total_wire_bytes": 36374
       },
       "reference": {
-        "total_wire_bytes": 31633
+        "total_wire_bytes": 31824
       },
       "script": {
-        "total_wire_bytes": 79065
+        "total_wire_bytes": 80791
       }
     }
   },
@@ -424,9 +424,9 @@
         "tool_count": 31,
         "requests": 5,
         "input_bytes": 1382,
-        "output_bytes": 30251,
-        "total_wire_bytes": 31633,
-        "contract_read_bytes": 14813,
+        "output_bytes": 30442,
+        "total_wire_bytes": 31824,
+        "contract_read_bytes": 15004,
         "workset_read_bytes": 4279,
         "pagination_rounds": 5,
         "wait_rounds": 0,
@@ -450,7 +450,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 168,
-          "output_bytes": 14645,
+          "output_bytes": 14836,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -498,9 +498,9 @@
         "tool_count": 31,
         "requests": 5,
         "input_bytes": 1662,
-        "output_bytes": 77403,
-        "total_wire_bytes": 79065,
-        "contract_read_bytes": 56917,
+        "output_bytes": 79129,
+        "total_wire_bytes": 80791,
+        "contract_read_bytes": 58643,
         "workset_read_bytes": 8377,
         "pagination_rounds": 5,
         "wait_rounds": 0,
@@ -524,7 +524,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 154,
-          "output_bytes": 56763,
+          "output_bytes": 58489,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null

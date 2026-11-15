@@ -100,10 +100,18 @@ Shot；同一 Shot 跨多个 Segment 时是同一连续镜头的生产切片。�
 在同一 patch 后续加 `update_scene_fields`，改 setting 会让整场已选视频过期，先向用户说明。不要用删除再插入代替合并。
 
 `duration_estimate_seconds` 只是节奏预估。Segment 的 `action` 写该分段负责的动作区间。角色对白写入
-`dialogue_lines`，每句引用说话角色，`delivery` 写本句的潜台词（嘴上说的与真正想要的）和语气；
+`dialogue_lines`，每句引用说话角色，`delivery` 写本句的潜台词（嘴上说的与真正想要的）以及它在声音上
+怎么露出来。`delivery` 会原样作为表演指示交给 TTS，必须落到听得见的发声方式：音量与音区、气息与发力、
+语速与停顿、重音、破音或气声、句尾收短还是拖长；一两句写完，通常不超过 100 字。不写剧情前史（“历经血战后”），
+也不写风声、回声、被打断等混音效果，这些交给 `audio_direction` 或画面。
 说话者可以在画外，此时不列入该 Shot 的 `visible_character_ids`。导演方案里不在引用库的说话者
-（研究员、门外路人、广播等）写 `character_id: null` 与 `speaker_label`（≤ 60 字称呼），台词照常保留，
-不要删掉，也不要挪进 `audio_direction`；是否入画在 Segment `action` 里写明。每个 Shot 至多一个开口说话的
+（研究员、门外路人、广播等）写 `character_id: null`、`speaker_label`（≤ 60 字称呼）和必填的
+`voice_description`（≤ 500 字），台词照常保留，不要删掉，也不要挪进 `audio_direction`；是否入画在 Segment
+`action` 里写明。临时说话者没有参考音频，Core 把 `voice_description` 与本句 `delivery` 一起交给 Voice Design
+直接朗读台词，所以 `voice_description` 只写这个人的本嗓：年龄与身份、长年的用嗓习惯、音区与共鸣、质地、
+需要排除的默认腔调、语言与口音。不要写“语速平稳均匀，语调平淡，无明显情绪起伏”这类朗读状态，也不写本句
+情绪，它们会和 `delivery` 打架；情绪只写进 `delivery`。同一临时说话者的多句对白沿用同一段 `voice_description`。
+引用库角色的对白不写 `voice_description`。每个 Shot 至多一个开口说话的
 可见角色；一个 Segment 覆盖多个 Shot 时这条规则分别作用于每个 Shot，台词在该 Shot 对应的段内区间说完，
 不要在同一段内让两个可见人物在同一镜头里轮流开口。没有对白时返回空数组。旁白不是角色对白，不写入这里。
 只有 drama Scene 的 Segment 可以有对白；narration Scene 的 Segment 一律返回空数组。
