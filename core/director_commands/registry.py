@@ -40,7 +40,7 @@ from .final_commands import (
     parse_final_approval,
     parse_final_candidate_selection,
 )
-from .generation_commands import GenerationTarget, parse_generation_target
+from .generation_commands import GenerationDismissal, parse_generation_dismissal
 from .location_operations import (
     LocationImageSelection,
     LocationOperationsPatch,
@@ -224,7 +224,7 @@ class DirectorCommandStore(Protocol):
 
     def dismiss_generation_command(
         self,
-        target: GenerationTarget,
+        target: GenerationDismissal,
         *,
         expected_revision: int,
         command_id: str,
@@ -479,7 +479,7 @@ _COMMAND_SPECS: dict[str, _CommandSpec] = {
         _parse(parse_video_upscale_clear), "clear_segment_video_upscale"
     ),
     "generation.dismiss": _CommandSpec(
-        _parse_named(parse_generation_target), "dismiss_generation_command"
+        _parse(parse_generation_dismissal), "dismiss_generation_command"
     ),
     "final.select_candidate": _CommandSpec(
         _parse(parse_final_candidate_selection), "select_final_candidate_command"

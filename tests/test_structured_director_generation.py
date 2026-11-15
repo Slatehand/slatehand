@@ -1237,7 +1237,7 @@ class StructuredDirectorGenerationTests(unittest.IsolatedAsyncioTestCase):
                         "generation.dismiss",
                         created.revision,
                         "strict-generation-arguments",
-                        {"generation_id": "a" * 32, "delete": True},
+                        {"generation_ids": ["a" * 32], "delete": True},
                     )
                 )
 

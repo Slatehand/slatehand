@@ -6,7 +6,7 @@ persistence 私有助手等）。"""
 
 from __future__ import annotations
 
-from core.director_commands import CommandReceipt, GenerationTarget
+from core.director_commands import CommandReceipt, GenerationDismissal
 from core.structured_director.asset_metadata import _asset_filename as _asset_filename
 from core.structured_director.asset_metadata import (
     _generation_asset_location as _generation_asset_location,
@@ -123,7 +123,7 @@ class GenerationDomain(_DomainBase):
 
     def dismiss_generation_command(
         self,
-        target: GenerationTarget,
+        target: GenerationDismissal,
         *,
         expected_revision: int,
         command_id: str,

@@ -10,6 +10,8 @@ ID = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 IDs = Annotated[list[ID], Field(max_length=100)]
 Targets = Annotated[list[ID], Field(min_length=1, max_length=100)]
 Text = Annotated[str, Field(max_length=20000)]
+# 与 Core 的 generation.dismiss 上限一致（测试守护）；MCP 进程不导入 Core。
+DISMISS_MAX_TARGETS = 20
 # 与 Core 的 IMAGE_ASPECT_RATIOS 一致（测试守护）；MCP 进程不导入 Core。
 AspectRatio = Literal[
     "16:9",
@@ -591,8 +593,10 @@ class GenerationAction(ReadRequest):
         if len(self.generation_ids) != len(set(self.generation_ids)):
             raise ValueError("Generation ID 不能重复。")
         if self.action != "wait":
-            if len(self.generation_ids) != 1:
-                raise ValueError("只有 wait 接受多个目标。")
+            if self.action == "dismiss" and len(self.generation_ids) > DISMISS_MAX_TARGETS:
+                raise ValueError(f"dismiss 一次至多 {DISMISS_MAX_TARGETS} 个目标。")
+            if self.action in {"cancel", "retry"} and len(self.generation_ids) != 1:
+                raise ValueError("cancel/retry 只接受 1 个目标。")
             if self.expected_revision is None or "idempotency_key" not in self.model_fields_set:
                 raise ValueError(
                     "cancel/retry/dismiss 必须提供 expected_revision 与 idempotency_key。"
@@ -920,7 +924,7 @@ def translate(name, request):
     if isinstance(request, GenerationAction):
         return f"generation.{request.action}", (
             {"generation_ids": request.generation_ids}
-            if request.action == "wait"
+            if request.action in {"wait", "dismiss"}
             else {"generation_id": request.generation_ids[0]}
         )
     if isinstance(request, Batch):

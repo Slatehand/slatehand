@@ -492,7 +492,7 @@ class ImpactPreviewCharacterizationTests(unittest.IsolatedAsyncioTestCase):
                     },
                 ),
                 "generation.dismiss": (
-                    {"generation_id": generation_id},
+                    {"generation_ids": [generation_id]},
                     {
                         "will_write": True,
                         "changed_ids": [generation_id],

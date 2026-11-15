@@ -1527,7 +1527,7 @@ class StructuredDirectorService:
                     "generation.dismiss",
                     expected_revision,
                     f"ui-generation-dismiss:{expected_revision}:{generation_id}",
-                    {"generation_id": generation_id},
+                    {"generation_ids": [generation_id]},
                 )
             ).document
 

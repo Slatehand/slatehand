@@ -16,8 +16,11 @@ from .final_commands import (
     parse_final_scene_target,
 )
 from .generation_commands import (
+    DISMISS_MAX_TARGETS,
+    GenerationDismissal,
     GenerationTarget,
     GenerationWait,
+    parse_generation_dismissal,
     parse_generation_target,
     parse_generation_wait,
 )
@@ -152,6 +155,8 @@ __all__ = [
     "FinalApprovalRequest",
     "FinalCandidateSelection",
     "FinalSceneTarget",
+    "DISMISS_MAX_TARGETS",
+    "GenerationDismissal",
     "GenerationTarget",
     "GenerationWait",
     "NarrationCueUpdate",
@@ -190,6 +195,7 @@ __all__ = [
     "parse_final_approval",
     "parse_final_candidate_selection",
     "parse_final_scene_target",
+    "parse_generation_dismissal",
     "parse_generation_target",
     "parse_generation_wait",
     "parse_narration_cue_update",

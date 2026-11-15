@@ -51,7 +51,7 @@ adapter 解析为对象后仍走同一 Core proposal 命令、revision CAS 和�
 参数规则：
 
 - 工具顶层与嵌套请求都拒绝未知字段；条件参数用公开 `oneOf` 表达，与 runtime 共用同一参数矩阵（`read_story` 的 level 分支、专业 workset
-  的项目级/Scene 级能力、`media_batch` 的 kind/start/continue、`assemble_media` 的 scene/final、`manage_generation` 的 wait/单目标；wait 只观察，可省略 `expected_revision` 与 `idempotency_key`）。
+  的项目级/Scene 级能力、`media_batch` 的 kind/start/continue、`assemble_media` 的 scene/final、`manage_generation` 的 wait（≤ 100）/dismiss（≤ 20）/cancel·retry（单目标）；wait 只观察，可省略 `expected_revision` 与 `idempotency_key`）。
 - proposal 按 action 给出互斥字段分支；为兼容会把可选字段补成 null 的原生连接器，非当前 action 的 null 被归一为省略，非 null 越界值仍拒绝，
   且不会传入 Core。非法组合返回固定字段说明，不回显正文、凭据或本机路径。
 - `submit_proposal` 的 submit 必须且只能提供 `proposal` 或 `proposal_source` 之一。工作区文件名由当前 `request_id` 确定，adapter

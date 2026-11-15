@@ -101,6 +101,11 @@ def test_external_batch_three_waves_replay_and_exact_scope(tmp_path):
             if item["task_type"] == "generation" and item["id"] in original_ids
         }
         assert set(generation_tasks) == set(original_ids)
+        assert {
+            item["active_reason"]
+            for item in discovered.body["data"]["task_discovery"]["active"]
+            if item["task_type"] == "generation"
+        } == {"task_status"}
         assert {item["run_id"] for item in generation_tasks.values()} == {rid}
         assert {item["run_association"] for item in generation_tasks.values()} == {
             "linked_director_run"
@@ -158,6 +163,15 @@ def test_external_batch_three_waves_replay_and_exact_scope(tmp_path):
                 service(store, provider), agent(store.read(), wave_handoff), wave_handoff
             )
             workflow = handed.body["data"]["workflow"]
+            # run 本身已结束，只因批次未终结留在 active：标明原因与批次阶段，避免误读为仍在运行。
+            held_runs = [
+                item
+                for item in handed.body["data"]["task_discovery"]["active"]
+                if item["task_type"] == "director_run" and item["batch_id"] == batch_id
+            ]
+            assert [item["id"] for item in held_runs] == [previous_execution_run_id]
+            assert held_runs[0]["active_reason"] == "open_batch"
+            assert held_runs[0]["batch_phase"] == "awaiting_explicit_continue"
             assert workflow["active_task"]["batch_id"] == batch_id
             assert workflow["active_task"]["batch_kind"] == "keyframe"
             assert workflow["stage_status"] == "awaiting_explicit_continue"

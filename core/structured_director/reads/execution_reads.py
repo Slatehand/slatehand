@@ -173,17 +173,28 @@ def _task_discovery(document, arguments):
 
     unresolved_uncertain = unresolved_uncertain_ids(document.generations)
 
-    def is_active(item):
-        if item["task_type"] == "generation" and item["status"] == "submission_uncertain":
-            return item["id"] in unresolved_uncertain
+    def open_batch_phase(item):
+        """run 本身已结束、但它是未终结 batch 的最近一次执行时，返回该 batch 的 phase。"""
         observation = batch_observations.get(item.get("batch_id"))
-        batch_active = (
+        if (
             item["task_type"] == "director_run"
             and isinstance(observation, dict)
             and not observation["is_terminal"]
             and item["id"] == observation["latest_execution_run_id"]
-        )
-        return item["status"] in active_statuses or batch_active
+        ):
+            return observation["phase"]
+        return None
+
+    def is_active(item):
+        if item["task_type"] == "generation" and item["status"] == "submission_uncertain":
+            return item["id"] in unresolved_uncertain
+        return item["status"] in active_statuses or open_batch_phase(item) is not None
+
+    def with_active_reason(item):
+        # 区分任务本身未结束与“run 已结束、只因所属 batch 未终结而保留”，后者不占用算力。
+        if item["status"] in active_statuses:
+            return item | {"active_reason": "task_status"}
+        return item | {"active_reason": "open_batch", "batch_phase": open_batch_phase(item)}
 
     tasks.sort(key=lambda item: not is_active(item))
     active_count = sum(is_active(item) for item in tasks)
@@ -208,10 +219,14 @@ def _task_discovery(document, arguments):
             "generation_timestamps": "persisted_generation_lifecycle_not_director_run_time",
             "run_association": "null_run_id_can_be_not_applicable_or_legacy_unavailable",
             "workflow_relation": "parallel_activity_not_primary_workflow",
+            "active_reason": (
+                "task_status_means_task_itself_not_terminal;"
+                "open_batch_means_run_finished_but_its_batch_is_open_see_batch_phase"
+            ),
         },
         "active_count": active_count,
         "recent_count": sum(not is_active(item) for item in tasks),
-        "active": [item for item in page if is_active(item)],
+        "active": [with_active_reason(item) for item in page if is_active(item)],
         "recent": [item for item in page if not is_active(item)],
         "batches": [
             {

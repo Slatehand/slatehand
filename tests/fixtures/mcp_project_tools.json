@@ -2613,10 +2613,30 @@
         {
           "properties": {
             "action": {
+              "const": "dismiss"
+            },
+            "generation_ids": {
+              "items": {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              "maxItems": 20,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "expected_revision",
+            "idempotency_key"
+          ]
+        },
+        {
+          "properties": {
+            "action": {
               "enum": [
                 "cancel",
-                "retry",
-                "dismiss"
+                "retry"
               ]
             },
             "generation_ids": {

@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import replace
 
-from core.director_commands import CommandReceipt, GenerationTarget
+from core.director_commands import CommandReceipt, GenerationDismissal
 
 from ..models import (
     CharacterCard,
@@ -518,14 +518,30 @@ def _require_generation(
 
 def dismiss_generation(
     document: StructuredDirectorDocument,
-    target: GenerationTarget,
+    target: GenerationDismissal,
     *,
     command_id: str,
     timestamp: str,
 ) -> tuple[StructuredDirectorDocument, CommandReceipt, bool]:
-    """隐藏终态 Generation 卡片；Scene 输出 kind 级联隐藏全部历史。"""
-    generation = _require_generation(document, target.generation_id)
-    if generation.dismissed:
+    """原子隐藏一组终态 Generation 卡片；Scene 输出 kind 级联隐藏全部历史。
+
+    按顺序在同一份投影上逐个校验并隐藏，任一目标不合法整批拒绝；已隐藏的目标跳过，
+    全部已隐藏时为 noop。只递增一次 revision。
+    """
+    many = len(target.generation_ids) > 1
+    updated = document
+    dismissed_ids: set[str] = set()
+    cascaded = False
+    for generation_id in target.generation_ids:
+        try:
+            updated, hidden, scene_output = _dismiss_one(updated, generation_id, timestamp)
+        except ValueError as error:
+            if many:
+                raise ValueError(f"Generation {generation_id}：{error}") from error
+            raise
+        dismissed_ids.update(hidden)
+        cascaded = cascaded or scene_output
+    if not dismissed_ids:
         return (
             document,
             CommandReceipt(
@@ -537,6 +553,29 @@ def dismiss_generation(
             ),
             False,
         )
+    updated = replace(updated, revision=document.revision + 1)
+    receipt = CommandReceipt(
+        command_id,
+        "succeeded",
+        document.revision,
+        updated.revision,
+        changed_ids=tuple(sorted(dismissed_ids)),
+        preserved=("generation_history", "output_asset"),
+        decision_summary=(
+            "已隐藏 Scene 当前输出及全部历史卡片，历史事实与产物仍保留。"
+            if cascaded
+            else "已隐藏终态 Generation 卡片，历史事实与产物仍保留。"
+        ),
+    )
+    return updated, receipt, True
+
+
+def _dismiss_one(
+    document: StructuredDirectorDocument, generation_id: str, timestamp: str
+) -> tuple[StructuredDirectorDocument, frozenset[str], bool]:
+    generation = _require_generation(document, generation_id)
+    if generation.dismissed:
+        return document, frozenset(), False
     if generation.phase not in _TERMINAL_OR_UNCERTAIN:
         raise ValueError("只有已经结束的 Generation 可以删除历史卡片。")
     # 最终成片直接引用 Scene 成片 Asset；删除 Scene 成片会同时作废这份派生装配计划，
@@ -550,49 +589,33 @@ def dismiss_generation(
         references_document, generation.output_asset_id
     ):
         raise ValueError("该候选已经成为参考素材，请先解除引用。")
-    scene_output_history_ids = {
-        item.id
-        for item in document.generations
-        if item.kind is generation.kind
-        and item.target_id == generation.target_id
-        and item.language is generation.language
-        and item.phase in _TERMINAL_OR_UNCERTAIN
-    }
     dismissed_ids = (
-        scene_output_history_ids
+        frozenset(
+            item.id
+            for item in document.generations
+            if item.kind is generation.kind
+            and item.target_id == generation.target_id
+            and item.language is generation.language
+            and item.phase in _TERMINAL_OR_UNCERTAIN
+        )
         if generation.kind in _SCENE_OUTPUT_KINDS
-        else {target.generation_id}
+        else frozenset({generation_id})
     )
-    generations = {
-        item.id: replace(item, dismissed=True, updated_at=timestamp)
-        if item.id in dismissed_ids
-        else item
-        for item in document.generations
-    }
     updated = replace(
         document,
-        revision=document.revision + 1,
-        generations=tuple(generations.values()),
+        generations=tuple(
+            replace(item, dismissed=True, updated_at=timestamp)
+            if item.id in dismissed_ids
+            else item
+            for item in document.generations
+        ),
         final_assembly=(
             None
             if generation.kind is ReferenceGenerationKind.SCENE_FINAL_VIDEO
             else document.final_assembly
         ),
     )
-    receipt = CommandReceipt(
-        command_id,
-        "succeeded",
-        document.revision,
-        updated.revision,
-        changed_ids=tuple(sorted(dismissed_ids)),
-        preserved=("generation_history", "output_asset"),
-        decision_summary=(
-            "已隐藏该 Scene 的当前输出及全部历史卡片，历史事实与产物仍保留。"
-            if generation.kind in _SCENE_OUTPUT_KINDS
-            else "已隐藏终态 Generation 卡片，历史事实与产物仍保留。"
-        ),
-    )
-    return updated, receipt, True
+    return updated, dismissed_ids, generation.kind in _SCENE_OUTPUT_KINDS
 
 
 def _map_card(

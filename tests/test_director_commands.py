@@ -2517,7 +2517,7 @@ class DirectorCommandTests(unittest.IsolatedAsyncioTestCase):
                 ),
                 ("generation.cancel", {"generation_id": generation_id}),
                 ("generation.retry", {"generation_id": generation_id}),
-                ("generation.dismiss", {"generation_id": generation_id}),
+                ("generation.dismiss", {"generation_ids": [generation_id]}),
                 ("generation.wait", {"generation_ids": [generation_id]}),
                 ("animatic.generate_scene", {"scene_id": scene.id}),
                 ("final.assemble_scene", {"scene_id": scene.id}),

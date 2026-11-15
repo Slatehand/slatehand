@@ -14,7 +14,7 @@ from dataclasses import replace
 import pytest
 from test_models_validation import make_generation
 
-from core.director_commands import GenerationTarget
+from core.director_commands import GenerationDismissal
 from core.structured_director import mutations as _mutations_pkg
 from core.structured_director.models import (
     Asset,
@@ -449,7 +449,7 @@ def test_dismiss_guards():
         ),
         "只有已经结束的 Generation 可以删除历史卡片。",
         document=document,
-        target=GenerationTarget(ID_D),
+        target=GenerationDismissal((ID_D,)),
     )
     succeeded = replace(running, phase=ReferenceGenerationPhase.SUCCEEDED, output_asset_id=ID_D)
     with_image = CharacterCard(
@@ -466,13 +466,13 @@ def test_dismiss_guards():
         ),
         "该候选已经成为参考素材，请先解除引用。",
         document=referenced,
-        target=GenerationTarget(ID_D),
+        target=GenerationDismissal((ID_D,)),
     )
     # noop：已隐藏时 write=False。
     dismissed = replace(succeeded, dismissed=True)
     doc_done = _document(generations=(dismissed,), assets=(_png_asset(ID_D), _wav_asset("e" * 32)))
     _updated, receipt, write = _generation.dismiss_generation(
-        doc_done, GenerationTarget(ID_D), command_id="cmd", timestamp=NOW
+        doc_done, GenerationDismissal((ID_D,)), command_id="cmd", timestamp=NOW
     )
     assert write is False and receipt.status == "noop"
 
@@ -566,3 +566,50 @@ def test_update_and_recover():
     assert recovered.generations[0].error_code == "core_restarted_during_submit"
     again, changed = _generation.recover_interrupted_submissions(recovered, timestamp=NOW)
     assert changed is False and again is recovered
+
+
+def test_dismiss_batch_is_atomic_single_revision():
+    def done(generation_id, target_id):
+        return make_generation(
+            ReferenceGenerationKind.KEYFRAME_IMAGE,
+            GenerationOperation.GENERATE,
+            id=generation_id,
+            target_id=target_id,
+            phase=ReferenceGenerationPhase.FAILED,
+            error_code="provider_failed",
+        )
+
+    first, second = done(ID_B, "e" * 32), done(ID_C, "f" * 32)
+    already = replace(done(ID_D, "e" * 32), dismissed=True)
+    document = _document(generations=(first, second, already))
+    updated, receipt, write = _generation.dismiss_generation(
+        document, GenerationDismissal((ID_B, ID_D, ID_C)), command_id="cmd", timestamp=NOW
+    )
+    # 已隐藏的目标跳过；其余一次隐藏，只递增一个 revision。
+    assert write and receipt.status == "succeeded"
+    assert updated.revision == document.revision + 1
+    assert receipt.changed_ids == (ID_B, ID_C)
+    assert all(item.dismissed for item in updated.generations)
+
+    running = replace(second, phase=ReferenceGenerationPhase.RUNNING, error_code=None)
+    _expect(
+        lambda **kw: _generation.dismiss_generation(
+            kw.pop("document"), kw.pop("target"), command_id="cmd", timestamp=NOW
+        ),
+        f"Generation {ID_C}：只有已经结束的 Generation 可以删除历史卡片。",
+        document=_document(generations=(first, running)),
+        target=GenerationDismissal((ID_B, ID_C)),
+    )
+
+
+def test_dismiss_batch_argument_limits():
+    from core.director_commands import DISMISS_MAX_TARGETS, parse_generation_dismissal
+
+    ids = [f"{index:032x}" for index in range(DISMISS_MAX_TARGETS + 1)]
+    assert parse_generation_dismissal({"generation_ids": ids[:-1]}).generation_ids == tuple(
+        ids[:-1]
+    )
+    with pytest.raises(ValueError, match="1 到 20"):
+        parse_generation_dismissal({"generation_ids": ids})
+    with pytest.raises(ValueError, match="不能重复"):
+        parse_generation_dismissal({"generation_ids": [ID_B, ID_B]})

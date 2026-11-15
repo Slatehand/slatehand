@@ -2,7 +2,7 @@ import hashlib
 from dataclasses import replace
 from pathlib import Path
 
-from core.director_commands import GenerationTarget
+from core.director_commands import GenerationDismissal
 from core.project_settings import ProjectAspectRatio
 from core.structured_director import (
     GenerationOperation,
@@ -161,7 +161,7 @@ def test_scene_final_replaces_current_file_and_archives_previous_bytes(tmp_path:
     )
     store._atomic_write(document)
     hidden, _receipt = store.dismiss_generation_command(
-        GenerationTarget(newest.id),
+        GenerationDismissal((newest.id,)),
         expected_revision=document.revision,
         command_id=f"test-scene-final-overwrite:{document.revision}:{newest.id}",
     )
@@ -254,7 +254,7 @@ def test_scene_animatic_replaces_current_file_and_deletes_history_as_one_output(
     )
     store._atomic_write(document)
     hidden, _receipt = store.dismiss_generation_command(
-        GenerationTarget(completed.id),
+        GenerationDismissal((completed.id,)),
         expected_revision=document.revision,
         command_id=f"test-scene-final-overwrite:{document.revision}:{completed.id}",
     )

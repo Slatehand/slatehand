@@ -149,7 +149,7 @@ select_keyframe_candidate(keyframe_id=<目标帧>, source="keyframe", source_id=
 
 - 审核通过后立即用 `select_keyframe_candidate(source="generation", source_id=<generation_id>)` 选定，
   再推进依赖它的帧。先完成本轮全部审核和选择，再 `continue`。
-- 确认不会被采用的候选用 `manage_generation(action="dismiss")` 隐藏，让导演台只留值得看的内容。隐藏不删除 Generation 和 Asset，
+- 确认不会被采用的候选用 `manage_generation(action="dismiss")` 隐藏（一次可传多个 `generation_ids`），让导演台只留值得看的内容。隐藏不删除 Generation 和 Asset，
   图片留在资产中心，需要时可以用 `source="asset"` 选回。
   - 只隐藏有明确依据的：看得清的结构缺陷、身份或造型错误、违背镜头设计，或计划修改后已过时。只是不如另一张的可用候选，以及你不够确定的，都不隐藏。
   - 某帧用完重试预算仍没有合格候选时，留下最接近的一条，让人看到问题。

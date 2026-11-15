@@ -221,7 +221,7 @@ Core 分配。不支持单独移动 Shot：整场并入上一场用 `merge_adjac
 | `generation.wait` | A | 动态观察明确的 Generation ID 集合，无变化时不写回执、不推进 revision；不校验、可省略 `expected_revision` |
 | `generation.cancel` | A | 先持久化取消意图，再请求 Provider |
 | `generation.retry` | A | 仅 `failed` / `cancelled` / `submission_uncertain`；当前业务输入必须与原规范化签名完全一致，新建带 `retry_of` 的 Generation |
-| `generation.dismiss` | A | 隐藏候选卡片；被当前业务对象采用的媒体不能隐藏 |
+| `generation.dismiss` | A | `generation_ids` 为 1–20 个 ID，一次 revision 原子隐藏候选卡片；任一目标未结束或其媒体被当前业务对象采用则整批拒绝，已隐藏的跳过 |
 
 ## Scene 输出与最终成片
 

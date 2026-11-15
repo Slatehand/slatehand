@@ -9,7 +9,7 @@ import pytest
 from test_architecture_acceptance import mixed_acceptance
 from test_director_commands import _visual_project
 
-from core.director_commands import GenerationTarget
+from core.director_commands import GenerationDismissal
 from core.structured_director import (
     FinalAssemblyClip,
     FinalAssemblyPlan,
@@ -221,7 +221,7 @@ def test_dismissing_a_scene_final_invalidates_the_derived_final_plan(tmp_path: P
     store._atomic_write(document)
 
     dismissed, _receipt = store.dismiss_generation_command(
-        GenerationTarget(generation.id),
+        GenerationDismissal((generation.id,)),
         expected_revision=document.revision,
         command_id=f"test-final-scene-assembly:{document.revision}:{generation.id}",
     )

@@ -23,6 +23,7 @@ from .playground_tools import (
 )
 from .production_tools import (
     DESCRIPTIONS,
+    DISMISS_MAX_TARGETS,
     ID,
     MODELS,
     ProjectRead,
@@ -365,15 +366,18 @@ def tool_schema(name, model):
         ]
     elif name == "manage_generation":
         many = _array_property(schema, "generation_ids", minimum=1, maximum=100)
+        some = _array_property(schema, "generation_ids", minimum=1, maximum=DISMISS_MAX_TARGETS)
         one = _array_property(schema, "generation_ids", minimum=1, maximum=1)
+        writes = ["expected_revision", "idempotency_key"]
         schema["oneOf"] = [
             {"properties": {"action": {"const": "wait"}, "generation_ids": many}},
             {
-                "properties": {
-                    "action": {"enum": ["cancel", "retry", "dismiss"]},
-                    "generation_ids": one,
-                },
-                "required": ["expected_revision", "idempotency_key"],
+                "properties": {"action": {"const": "dismiss"}, "generation_ids": some},
+                "required": writes,
+            },
+            {
+                "properties": {"action": {"enum": ["cancel", "retry"]}, "generation_ids": one},
+                "required": writes,
             },
         ]
     elif name == "media_batch":

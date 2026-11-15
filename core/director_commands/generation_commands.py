@@ -18,20 +18,36 @@ class GenerationWait:
     generation_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class GenerationDismissal:
+    generation_ids: tuple[str, ...]
+
+
+DISMISS_MAX_TARGETS = 20
+
+
 def parse_generation_target(value: object, command_name: str) -> GenerationTarget:
     item = _exact(value, {"generation_id"}, command_name)
     return GenerationTarget(_id(item["generation_id"], "generation_id"))
 
 
 def parse_generation_wait(value: object) -> GenerationWait:
-    item = _exact(value, {"generation_ids"}, "generation.wait")
+    return GenerationWait(_generation_ids(value, "generation.wait", 100))
+
+
+def parse_generation_dismissal(value: object) -> GenerationDismissal:
+    return GenerationDismissal(_generation_ids(value, "generation.dismiss", DISMISS_MAX_TARGETS))
+
+
+def _generation_ids(value: object, label: str, maximum: int) -> tuple[str, ...]:
+    item = _exact(value, {"generation_ids"}, label)
     raw_ids = item["generation_ids"]
-    if not isinstance(raw_ids, list) or not 1 <= len(raw_ids) <= 100:
-        raise ValueError("generation.wait.generation_ids 必须包含 1 到 100 个 ID。")
+    if not isinstance(raw_ids, list) or not 1 <= len(raw_ids) <= maximum:
+        raise ValueError(f"{label}.generation_ids 必须包含 1 到 {maximum} 个 ID。")
     result = tuple(_id(value, "generation_ids") for value in raw_ids)
     if len(result) != len(set(result)):
-        raise ValueError("generation.wait.generation_ids 不能重复。")
-    return GenerationWait(result)
+        raise ValueError(f"{label}.generation_ids 不能重复。")
+    return result
 
 
 def _exact(value: object, keys: set[str], label: str) -> dict[str, object]:

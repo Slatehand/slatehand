@@ -1907,7 +1907,7 @@ class StructuredDirectorHttpApi:
                     revision,
                     f"ui-generation-{action}:{revision}:{generation_id}",
                     {"generation_ids": [generation_id]}
-                    if action == "wait"
+                    if action in {"wait", "dismiss"}
                     else {"generation_id": generation_id},
                 )
             )

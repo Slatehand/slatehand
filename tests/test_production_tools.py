@@ -204,6 +204,27 @@ def test_select_keyframe_candidate_translates_each_source(source, key):
         model.model_validate({**BASE, "keyframe_id": TARGET, "generation_id": "b" * 32})
 
 
+def test_manage_generation_target_counts_per_action():
+    from core.director_commands import DISMISS_MAX_TARGETS as CORE_DISMISS_MAX
+    from integrations.slatehand_mcp.production_tools import DISMISS_MAX_TARGETS
+
+    assert DISMISS_MAX_TARGETS == CORE_DISMISS_MAX
+    model = MODELS["manage_generation"]
+    ids = [f"{index:032x}" for index in range(DISMISS_MAX_TARGETS + 1)]
+    dismiss = model.model_validate(
+        {**BASE, "action": "dismiss", "generation_ids": ids[:DISMISS_MAX_TARGETS]}
+    )
+    assert translate("manage_generation", dismiss) == (
+        "generation.dismiss",
+        {"generation_ids": ids[:DISMISS_MAX_TARGETS]},
+    )
+    with pytest.raises(ValueError):
+        model.model_validate({**BASE, "action": "dismiss", "generation_ids": ids})
+    for action in ("cancel", "retry"):
+        with pytest.raises(ValueError):
+            model.model_validate({**BASE, "action": action, "generation_ids": ids[:2]})
+
+
 def test_frame_extraction_frame_index_is_optional_and_exclusive():
     model = MODELS["generate_media"]
     base = {**BASE, "kind": "frame_extraction", "target_id": TARGET}

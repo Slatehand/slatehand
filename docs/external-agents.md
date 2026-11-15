@@ -159,7 +159,7 @@ flowchart LR
 | 生产 | `generate_media` | 单目标 `narration.generate`（必须给 `language`）/ `location.generate_image`（`location_image`）/ `location.capture_panorama`（`panorama_capture`，创建带说明的普通子图）/ `keyframe.generate` / `video.generate_reference_image`（`reference_image`：`target_id` 为图片规划 ID）/ `video.generate` / `video.upscale` / `reference.generate_look_sheet`（`look_sheet`：`target_id` 为造型 ID，必须给 0–4 张 `identity_asset_ids` 身份参考，可选完整 `prompt_text`）/ `reference.design_voice`（`voice`：`target_id` 为角色卡或旁白身份 ID，旁白须给 `language`，必须给 `voice_description` 与 `sample_text`，可选 `seed`）/ `keyframe.extract_frame`（`frame_extraction`：`target_id` 为 Segment 首帧 Keyframe ID，可选 `frame_index`，省略取倒数第 5 帧；来源与可用性见 `project.get_details` `kind=keyframe` 的 `start_frame_extraction`） |
 | | `media_batch` | 必填 `kind`：`keyframe` 的 `start` / `continue` 翻译为 `keyframe.generate_batch` / `keyframe.continue_batch`；`location` 的两种 action 都翻译为 `location.generate_set`（`target_ids` 启动、`run_id` 继续） |
 | | `assemble_media` | `animatic.generate_scene` / `final.assemble_scene` / `final.assemble` |
-| | `manage_generation` | `generation.wait`（只观察，可省略 `expected_revision` 与 `idempotency_key`）/ `cancel` / `retry` / `dismiss` |
+| | `manage_generation` | `generation.wait`（只观察，可省略 `expected_revision` 与 `idempotency_key`，≤ 100 个目标）/ `cancel` / `retry`（各 1 个目标）/ `dismiss`（≤ 20 个目标，一次原子隐藏） |
 | | `cancel_run` | `run.cancel` |
 | 提醒 | `ring_alarm` | `alarm.ring`（`message`；见下文主机闹钟，不读写项目） |
 
@@ -259,7 +259,7 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
 | `activity_summary` | 全项目非终态 Generation 数量；并行任务看 `task_discovery` |
 | `workspace_capabilities.unlocked` | 累计解锁层 |
 | `allowed_actions` | 人类 UI 能力，**不是**主流程下一步 |
-| `task_discovery`（handoff） | 从 run、ApplicationRequest、Generation 派生的活动/最近任务；未指定 `limit` 时返回全部进行中任务与最近 5 条已结束任务，更早历史经 `next_cursor` 分页，cursor 绑定 observation revision |
+| `task_discovery`（handoff） | 从 run、ApplicationRequest、Generation 派生的活动/最近任务；未指定 `limit` 时返回全部进行中任务与最近 5 条已结束任务，更早历史经 `next_cursor` 分页，cursor 绑定 observation revision。`active` 每项带 `active_reason`：`task_status` 表示任务本身未结束；`open_batch` 表示 run 已结束、只因所属批次未终结而保留，附 `batch_phase`（如 `blocked_on_dependency`、`awaiting_explicit_continue`），不占用算力 |
 
 关键约束：
 

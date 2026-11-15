@@ -10,6 +10,7 @@ from core.director_commands import (
     parse_final_approval,
     parse_final_candidate_selection,
     parse_final_scene_target,
+    parse_generation_dismissal,
     parse_generation_target,
     parse_generation_wait,
     parse_keyframe_operations,
@@ -225,7 +226,9 @@ def preview_command_impact(
             changed_ids.add(item.segment_id)
             invalidated.update(_repair_invalidated_items(document, projected))
             preserved.update(("video_selection", "asset_history", "generation_history"))
-    elif name in {"generation.cancel", "generation.retry", "generation.dismiss"}:
+    elif name == "generation.dismiss":
+        changed_ids.update(parse_generation_dismissal(command.arguments).generation_ids)
+    elif name in {"generation.cancel", "generation.retry"}:
         target = parse_generation_target(command.arguments, name)
         changed_ids.add(target.generation_id)
         if name == "generation.retry":
