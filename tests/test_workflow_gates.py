@@ -259,8 +259,8 @@ def test_primary_workflow_parallel_generation_and_unlocked_capabilities_are_orth
             ),
         )
         state = workflow_state(document)
-        assert state["current_stage"] == "reference_library"
-        assert state["stage_status"] == "awaiting_human_review"
+        # 引用审核只把关首次生成脚本：脚本建立后缺少确认回执不把主流程拉回引用审核。
+        assert state["current_stage"] == "final"
         assert state["active_task"] is None
         assert state["semantics"] == {
             "current_stage": "primary_workflow_focus_not_capability_lock",
@@ -800,7 +800,7 @@ def test_location_recommendations_follow_bindings_and_stay_optional(tmp_path):
     )
     assert_workflow_tools_exist(state)
 
-    # 引用库确认记录缺失时推荐消失。
+    # 脚本建立后引用库回改（确认回执不再匹配）不撤回推荐。
     unreviewed = replace(
         document,
         application_requests=tuple(
@@ -809,7 +809,9 @@ def test_location_recommendations_follow_bindings_and_stay_optional(tmp_path):
             if record.operation != "reference.confirm_review"
         ),
     )
-    assert workflow_state(unreviewed)["recommended_next_actions"] == []
+    assert (
+        workflow_state(unreviewed)["recommended_next_actions"] == state["recommended_next_actions"]
+    )
 
     # D6：解锁本身就是跳过；解锁后不再推荐规划与地点图片成套生成。
     unlocked = asyncio.run(

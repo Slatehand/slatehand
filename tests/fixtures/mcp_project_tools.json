@@ -1908,9 +1908,50 @@
     "name": "edit_locations"
   },
   {
-    "description": "新增/修改角色造型（外观、使用场合），不生成、不删除。",
+    "description": "编辑已建立的引用库：增删改角色卡与造型、选定或取消造型图、选定或取消参考音色、修改旁白身份；同一 patch 新建项以 key 互引；不生成。",
     "inputSchema": {
       "$defs": {
+        "CharacterFields": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "visual_description": {
+              "anyOf": [
+                {
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "voice_description": {
+              "maxLength": 500,
+              "type": "string"
+            },
+            "voice_reference_transcript": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
         "LookFields": {
           "additionalProperties": false,
           "properties": {
@@ -1932,6 +1973,130 @@
           },
           "type": "object"
         },
+        "NarratorFields": {
+          "additionalProperties": false,
+          "properties": {
+            "en": {
+              "$ref": "#/$defs/NarratorVoiceFields"
+            },
+            "name": {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "zh": {
+              "$ref": "#/$defs/NarratorVoiceFields"
+            }
+          },
+          "type": "object"
+        },
+        "NarratorVoiceFields": {
+          "additionalProperties": false,
+          "properties": {
+            "voice_description": {
+              "maxLength": 500,
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "voice_reference_transcript": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "NewLook": {
+          "additionalProperties": false,
+          "properties": {
+            "appearance": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "key": {
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "usage": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "key",
+            "name",
+            "appearance",
+            "usage"
+          ],
+          "type": "object"
+        },
+        "add_character": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "looks": {
+              "items": {
+                "$ref": "#/$defs/NewLook"
+              },
+              "maxItems": 8,
+              "type": "array"
+            },
+            "name": {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "op": {
+              "const": "add_character"
+            },
+            "visual_description": {
+              "anyOf": [
+                {
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "voice_description": {
+              "maxLength": 500,
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "key",
+            "name",
+            "visual_description",
+            "voice_description",
+            "looks"
+          ],
+          "type": "object"
+        },
         "add_look": {
           "additionalProperties": false,
           "properties": {
@@ -1941,7 +2106,11 @@
               "type": "string"
             },
             "character_id": {
-              "pattern": "^[0-9a-f]{32}$",
+              "pattern": "^(?:[0-9a-f]{32}|[a-z][a-z0-9_-]{0,63})$",
+              "type": "string"
+            },
+            "key": {
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$",
               "type": "string"
             },
             "name": {
@@ -1961,9 +2130,217 @@
           "required": [
             "op",
             "character_id",
+            "key",
             "name",
             "appearance",
             "usage"
+          ],
+          "type": "object"
+        },
+        "clear_look_image": {
+          "additionalProperties": false,
+          "properties": {
+            "look_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "op": {
+              "const": "clear_look_image"
+            }
+          },
+          "required": [
+            "op",
+            "look_id"
+          ],
+          "type": "object"
+        },
+        "clear_voice": {
+          "additionalProperties": false,
+          "properties": {
+            "character_id": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[0-9a-f]{32}|[a-z][a-z0-9_-]{0,63})$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "language": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "zh",
+                    "en"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "op": {
+              "const": "clear_voice"
+            }
+          },
+          "required": [
+            "op",
+            "character_id",
+            "language"
+          ],
+          "type": "object"
+        },
+        "delete_character": {
+          "additionalProperties": false,
+          "properties": {
+            "character_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "op": {
+              "const": "delete_character"
+            }
+          },
+          "required": [
+            "op",
+            "character_id"
+          ],
+          "type": "object"
+        },
+        "delete_look": {
+          "additionalProperties": false,
+          "properties": {
+            "look_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "op": {
+              "const": "delete_look"
+            }
+          },
+          "required": [
+            "op",
+            "look_id"
+          ],
+          "type": "object"
+        },
+        "select_look_image": {
+          "additionalProperties": false,
+          "properties": {
+            "look_id": {
+              "pattern": "^(?:[0-9a-f]{32}|[a-z][a-z0-9_-]{0,63})$",
+              "type": "string"
+            },
+            "op": {
+              "const": "select_look_image"
+            },
+            "source": {
+              "enum": [
+                "generation",
+                "asset"
+              ],
+              "type": "string"
+            },
+            "source_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "look_id",
+            "source",
+            "source_id"
+          ],
+          "type": "object"
+        },
+        "select_voice": {
+          "additionalProperties": false,
+          "properties": {
+            "character_id": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[0-9a-f]{32}|[a-z][a-z0-9_-]{0,63})$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "language": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "zh",
+                    "en"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "op": {
+              "const": "select_voice"
+            },
+            "source": {
+              "enum": [
+                "generation",
+                "asset"
+              ],
+              "type": "string"
+            },
+            "source_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "transcript": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "character_id",
+            "language",
+            "source",
+            "source_id",
+            "transcript"
+          ],
+          "type": "object"
+        },
+        "update_character": {
+          "additionalProperties": false,
+          "properties": {
+            "character_id": {
+              "pattern": "^(?:[0-9a-f]{32}|[a-z][a-z0-9_-]{0,63})$",
+              "type": "string"
+            },
+            "fields": {
+              "$ref": "#/$defs/CharacterFields"
+            },
+            "op": {
+              "const": "update_character"
+            }
+          },
+          "required": [
+            "op",
+            "character_id",
+            "fields"
           ],
           "type": "object"
         },
@@ -1974,7 +2351,7 @@
               "$ref": "#/$defs/LookFields"
             },
             "look_id": {
-              "pattern": "^[0-9a-f]{32}$",
+              "pattern": "^(?:[0-9a-f]{32}|[a-z][a-z0-9_-]{0,63})$",
               "type": "string"
             },
             "op": {
@@ -1984,6 +2361,22 @@
           "required": [
             "op",
             "look_id",
+            "fields"
+          ],
+          "type": "object"
+        },
+        "update_narrator": {
+          "additionalProperties": false,
+          "properties": {
+            "fields": {
+              "$ref": "#/$defs/NarratorFields"
+            },
+            "op": {
+              "const": "update_narrator"
+            }
+          },
+          "required": [
+            "op",
             "fields"
           ],
           "type": "object"
@@ -2004,14 +2397,41 @@
           "items": {
             "oneOf": [
               {
+                "$ref": "#/$defs/add_character"
+              },
+              {
+                "$ref": "#/$defs/update_character"
+              },
+              {
+                "$ref": "#/$defs/delete_character"
+              },
+              {
                 "$ref": "#/$defs/add_look"
               },
               {
                 "$ref": "#/$defs/update_look"
+              },
+              {
+                "$ref": "#/$defs/delete_look"
+              },
+              {
+                "$ref": "#/$defs/select_look_image"
+              },
+              {
+                "$ref": "#/$defs/clear_look_image"
+              },
+              {
+                "$ref": "#/$defs/select_voice"
+              },
+              {
+                "$ref": "#/$defs/clear_voice"
+              },
+              {
+                "$ref": "#/$defs/update_narrator"
               }
             ]
           },
-          "maxItems": 32,
+          "maxItems": 64,
           "minItems": 1,
           "type": "array"
         },
@@ -2028,10 +2448,10 @@
       ],
       "type": "object"
     },
-    "name": "edit_looks"
+    "name": "edit_references"
   },
   {
-    "description": "生成明确授权的图片、音频或视频候选，或执行一次全景取景；其他图片用 kind=reference_image，target_id 为 reference_image_plans 中的规划 ID；kind=frame_extraction 从上一 Segment 当前视频抽一帧作为该首帧候选（默认倒数第 5 帧）；不自动选择。",
+    "description": "生成明确授权的图片、音频或视频候选，或执行一次全景取景；kind=voice 为角色卡或旁白某语言设计参考音色试听候选；其他图片用 kind=reference_image，target_id 为 reference_image_plans 中的规划 ID；kind=frame_extraction 从上一 Segment 当前视频抽一帧作为该首帧候选（默认倒数第 5 帧）；不自动选择。",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -2079,6 +2499,7 @@
             "video",
             "upscale",
             "look_sheet",
+            "voice",
             "location_image",
             "panorama_capture",
             "frame_extraction"
@@ -2103,9 +2524,57 @@
           "pattern": "^[0-9a-f]{32}$",
           "type": "string"
         },
+        "prompt_text": {
+          "anyOf": [
+            {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sample_text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "maximum": 4294967295,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "target_id": {
           "pattern": "^[0-9a-f]{32}$",
           "type": "string"
+        },
+        "voice_description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

@@ -17,6 +17,7 @@ from core.director_commands.models import (
 
 from .change_journal import RebaseScope, argument_ids, rebase_scope
 from .errors import RevisionConflictError
+from .models import NarrationLanguage
 from .proposal_request_guard import owned_request
 from .reads.batch_observation import current_batch_execution
 from .reads.entity_locator import describe_entities
@@ -336,15 +337,68 @@ def attach_submission_request(store, document):
 
 
 def _look_sheet_arguments(arguments):
-    """造型设定图只接受造型 ID 与显式身份参考；版式、比例与提示词由 Core 编译。"""
+    """造型设定图：造型 ID、显式身份参考与可选完整提示词（省略或 null 时由 Core 编译）。"""
+    if (
+        not {"look_id", "identity_asset_ids"}
+        <= set(arguments)
+        <= {
+            "look_id",
+            "identity_asset_ids",
+            "prompt_text",
+        }
+    ):
+        raise InvalidArgumentsError(
+            "造型设定图只接受 look_id、identity_asset_ids 与可选 prompt_text。"
+        )
     assets = arguments["identity_asset_ids"]
+    prompt_text = arguments.get("prompt_text")
     if (
         not isinstance(arguments["look_id"], str)
         or not isinstance(assets, list)
         or not all(isinstance(item, str) for item in assets)
+        or (
+            prompt_text is not None
+            and (not isinstance(prompt_text, str) or not prompt_text.strip())
+        )
     ):
         raise InvalidArgumentsError("造型设定图生成参数不合法。")
-    return {"look_id": arguments["look_id"], "identity_asset_ids": tuple(assets)}
+    return {
+        "look_id": arguments["look_id"],
+        "identity_asset_ids": tuple(assets),
+        "prompt_text": prompt_text,
+    }
+
+
+_DEFAULT_VOICE_SEED = 42
+
+
+def _voice_design_arguments(arguments):
+    """音色设计：角色卡（language 为 null）或旁白某语言（target_id 为旁白身份）的试听候选。"""
+    required = {"target_id", "language", "voice_description", "sample_text"}
+    if not required <= set(arguments) <= {*required, "seed"}:
+        raise InvalidArgumentsError(
+            "音色设计只接受 target_id、language、voice_description、sample_text 与可选 seed。"
+        )
+    language = arguments["language"]
+    seed = arguments.get("seed", _DEFAULT_VOICE_SEED)
+    if (
+        not isinstance(arguments["target_id"], str)
+        or language not in {None, "zh", "en"}
+        or not all(
+            isinstance(arguments[name], str) and arguments[name].strip()
+            for name in ("voice_description", "sample_text")
+        )
+        or isinstance(seed, bool)
+        or not isinstance(seed, int)
+    ):
+        raise InvalidArgumentsError("音色设计参数不合法。")
+    return {
+        "card_id": arguments["target_id"],
+        "voice_description": arguments["voice_description"],
+        "sample_text": arguments["sample_text"],
+        "seed": seed,
+        "narrator_language": None if language is None else NarrationLanguage(language),
+    }
 
 
 def _frame_extraction_arguments(arguments):
@@ -402,6 +456,10 @@ async def execute_application_command(service, caller, command):
             service.generate_look_sheet,
             {"look_id", "identity_asset_ids"},
         ),
+        "reference.design_voice": (
+            service._media.design_voice,
+            {"target_id", "language", "voice_description", "sample_text"},
+        ),
     }
     if (
         command.name not in generation_methods
@@ -449,11 +507,13 @@ async def execute_application_command(service, caller, command):
                 method, fields = generation_methods[command.name]
                 if command.name == "keyframe.extract_frame":
                     arguments = _frame_extraction_arguments(command.arguments)
-                elif set(command.arguments) != fields:
-                    raise InvalidArgumentsError("生成命令只接受明确目标 ID。")
                 elif command.name == "reference.generate_look_sheet":
                     arguments = _look_sheet_arguments(command.arguments)
-                elif any(not isinstance(v, str) for v in command.arguments.values()):
+                elif command.name == "reference.design_voice":
+                    arguments = _voice_design_arguments(command.arguments)
+                elif set(command.arguments) != fields or any(
+                    not isinstance(v, str) for v in command.arguments.values()
+                ):
                     raise InvalidArgumentsError("生成命令只接受明确目标 ID。")
                 else:
                     arguments = command.arguments

@@ -381,22 +381,74 @@ class LocationEdit(Request):
     ]
 
 
-# 角色造型：Core 分配造型 ID；删除只由人类在卡片编辑中完成。
+# 引用库：角色卡、造型、造型图、参考音色与旁白身份；Core 分配 ID，同一 patch 新建项用局部 key 互引。
 look_fields = {
     "name": Annotated[str, Field(min_length=1, max_length=100)],
     "appearance": Annotated[str, Field(min_length=1, max_length=2000)],
     "usage": Annotated[str, Field(min_length=1, max_length=1000)],
 }
 LookFields = object_model("LookFields", look_fields, look_fields)
-LookOperation = operation("add_look", {"character_id": ID, **look_fields}) | operation(
-    "update_look", {"look_id": ID, "fields": LookFields}
+NewLook = object_model("NewLook", {"key": Key, **look_fields})
+VoiceDescription = Annotated[str, Field(max_length=500)]
+Transcript = Annotated[str, Field(min_length=1, max_length=20000, pattern=r"\S")]
+CharacterName = Annotated[str, Field(min_length=1, max_length=200, pattern=r"\S")]
+character_fields = {
+    "name": CharacterName,
+    "visual_description": Annotated[str, Field(min_length=1, max_length=4000)] | None,
+    "voice_description": VoiceDescription,
+    "voice_reference_transcript": Transcript | None,
+}
+CharacterFields = object_model("CharacterFields", character_fields, character_fields)
+narrator_voice_fields = {
+    "voice_description": Annotated[str, Field(min_length=1, max_length=500, pattern=r"\S")],
+    "voice_reference_transcript": Transcript | None,
+}
+NarratorVoiceFields = object_model(
+    "NarratorVoiceFields", narrator_voice_fields, narrator_voice_fields
+)
+NarratorFields = object_model(
+    "NarratorFields",
+    {"name": CharacterName, "zh": NarratorVoiceFields, "en": NarratorVoiceFields},
+    ("name", "zh", "en"),
+)
+ImageSource = Literal["generation", "asset"]
+ReferenceOperation = reduce(
+    or_,
+    (
+        operation(name, fields)
+        for name, fields in {
+            "add_character": {
+                "key": Key,
+                "name": CharacterName,
+                "visual_description": character_fields["visual_description"],
+                "voice_description": VoiceDescription,
+                "looks": Annotated[list[NewLook], Field(max_length=8)],
+            },
+            "update_character": {"character_id": Ref, "fields": CharacterFields},
+            "delete_character": {"character_id": ID},
+            "add_look": {"character_id": Ref, "key": Key, **look_fields},
+            "update_look": {"look_id": Ref, "fields": LookFields},
+            "delete_look": {"look_id": ID},
+            "select_look_image": {"look_id": Ref, "source": ImageSource, "source_id": ID},
+            "clear_look_image": {"look_id": ID},
+            "select_voice": {
+                "character_id": Ref | None,
+                "language": Language | None,
+                "source": ImageSource,
+                "source_id": ID,
+                "transcript": Transcript | None,
+            },
+            "clear_voice": {"character_id": Ref | None, "language": Language | None},
+            "update_narrator": {"fields": NarratorFields},
+        }.items()
+    ),
 )
 
 
-class LookEdit(Request):
+class ReferenceEdit(Request):
     operations: Annotated[
-        list[Annotated[LookOperation, Field(discriminator="op")]],
-        Field(min_length=1, max_length=32),
+        list[Annotated[ReferenceOperation, Field(discriminator="op")]],
+        Field(min_length=1, max_length=64),
     ]
 
 
@@ -452,6 +504,7 @@ class Generate(Request):
         "video",
         "upscale",
         "look_sheet",
+        "voice",
         "location_image",
         "panorama_capture",
         "frame_extraction",
@@ -459,7 +512,12 @@ class Generate(Request):
     target_id: ID
     language: Annotated[
         Language | None,
-        Field(description="仅旁白生成需要：zh 或 en，两种语言各自合成。"),
+        Field(
+            description=(
+                "旁白生成必填：zh 或 en，两种语言各自合成；voice 设计旁白音色时也必填，"
+                "设计角色音色时省略。"
+            )
+        ),
     ] = None
     identity_asset_ids: Annotated[
         list[ID] | None,
@@ -467,6 +525,30 @@ class Generate(Request):
             max_length=4,
             description="仅 look_sheet（target_id 为造型 ID）：身份参考图 Asset，可为空列表。",
         ),
+    ] = None
+    prompt_text: Annotated[
+        str | None,
+        Field(
+            min_length=1,
+            max_length=20000,
+            description="仅 look_sheet：完整设定图提示词，原样提交；省略时由 Core 编译。",
+        ),
+    ] = None
+    voice_description: Annotated[
+        str | None,
+        Field(
+            min_length=1,
+            max_length=500,
+            description="仅 voice（target_id 为角色卡或旁白身份 ID）：本次试听的音色描述。",
+        ),
+    ] = None
+    sample_text: Annotated[
+        str | None,
+        Field(min_length=1, max_length=2000, description="仅 voice：试听朗读文本。"),
+    ] = None
+    seed: Annotated[
+        int | None,
+        Field(ge=0, le=2**32 - 1, description="仅 voice：起始 seed，省略为 42；Core 逐次递增。"),
     ] = None
     frame_index: Annotated[
         int | None,
@@ -481,10 +563,19 @@ class Generate(Request):
 
     @model_validator(mode="after")
     def kind_specific_fields(self):
-        if (self.kind == "narration") != (self.language is not None):
-            raise ValueError("只有旁白生成需要且必须指定 language（zh 或 en）。")
+        if self.kind == "narration" and self.language is None:
+            raise ValueError("旁白生成必须指定 language（zh 或 en）。")
+        if self.kind not in {"narration", "voice"} and self.language is not None:
+            raise ValueError("只有旁白生成与旁白音色设计接受 language。")
         if (self.kind == "look_sheet") != (self.identity_asset_ids is not None):
             raise ValueError("只有 look_sheet 需要且必须提供 identity_asset_ids。")
+        if self.kind != "look_sheet" and self.prompt_text is not None:
+            raise ValueError("只有 look_sheet 接受 prompt_text。")
+        voice = (self.voice_description, self.sample_text)
+        if self.kind == "voice" and None in voice:
+            raise ValueError("voice 必须提供 voice_description 与 sample_text。")
+        if self.kind != "voice" and (voice != (None, None) or self.seed is not None):
+            raise ValueError("只有 voice 接受 voice_description、sample_text 与 seed。")
         if self.kind != "frame_extraction" and self.frame_index is not None:
             raise ValueError("只有 frame_extraction 接受 frame_index。")
         return self
@@ -659,7 +750,7 @@ MODELS = {
     "edit_narration": NarrationEdit,
     "edit_keyframes": FrameEdit,
     "edit_locations": LocationEdit,
-    "edit_looks": LookEdit,
+    "edit_references": ReferenceEdit,
     "generate_media": Generate,
     "manage_generation": GenerationAction,
     "media_batch": Batch,
@@ -689,8 +780,10 @@ DESCRIPTIONS = {
             "局部更新旁白正文/参数，或解除当前音频引用；不自动生成。",
             "更新 Keyframe 计划/辅助图/边界，不生成。",
             "编辑地点语义、独立图片条目与可选Scene关系；新建项以key互引，不能选候选。",
-            "新增/修改角色造型（外观、使用场合），不生成、不删除。",
+            "编辑已建立的引用库：增删改角色卡与造型、选定或取消造型图、选定或取消参考音色、"
+            "修改旁白身份；同一 patch 新建项以 key 互引；不生成。",
             "生成明确授权的图片、音频或视频候选，或执行一次全景取景；"
+            "kind=voice 为角色卡或旁白某语言设计参考音色试听候选；"
             "其他图片用 kind=reference_image，target_id 为 reference_image_plans 中的规划 ID；"
             "kind=frame_extraction 从上一 Segment 当前视频抽一帧作为该首帧候选"
             "（默认倒数第 5 帧）；不自动选择。",
@@ -761,7 +854,7 @@ def translate(name, request):
         "edit_narration": "narration.update_cue",
         "edit_keyframes": "keyframe.apply_operations",
         "edit_locations": "location.apply_operations",
-        "edit_looks": "reference.apply_look_operations",
+        "edit_references": "reference.apply_operations",
         "read_run": "run.get_status",
         "cancel_run": "run.cancel",
         "read_request": "project.get_request",
@@ -784,6 +877,7 @@ def translate(name, request):
             "video": ("video.generate", "segment_id"),
             "upscale": ("video.upscale", "segment_id"),
             "look_sheet": ("reference.generate_look_sheet", "look_id"),
+            "voice": ("reference.design_voice", "target_id"),
             "location_image": ("location.generate_image", "image_id"),
             "panorama_capture": ("location.capture_panorama", "image_id"),
             "frame_extraction": ("keyframe.extract_frame", "keyframe_id"),
@@ -794,6 +888,15 @@ def translate(name, request):
             return command, {
                 target: request.target_id,
                 "identity_asset_ids": request.identity_asset_ids,
+                **({} if request.prompt_text is None else {"prompt_text": request.prompt_text}),
+            }
+        if request.kind == "voice":
+            return command, {
+                target: request.target_id,
+                "language": request.language,
+                "voice_description": request.voice_description,
+                "sample_text": request.sample_text,
+                **({} if request.seed is None else {"seed": request.seed}),
             }
         if request.kind == "frame_extraction" and request.frame_index is not None:
             return command, {target: request.target_id, "frame_index": request.frame_index}

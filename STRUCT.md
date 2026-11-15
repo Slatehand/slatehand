@@ -81,7 +81,7 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `script_operations.py`：脚本 Scene/Shot/Segment 原子操作输入。
 - `video_commands.py`：Segment 视频 recipe 输入、提示词、recipe 切换与撤销选择参数。
 - `location_operations.py`：地点语义、独立图片、Scene 绑定与人类地点图片选择参数。
-- `reference_commands.py`：角色造型新增 / 修改操作参数（`reference.apply_look_operations`）。
+- `reference_commands.py`：引用库编辑操作参数（`reference.apply_operations`：角色卡、造型、造型图、参考音色与旁白身份）。
 
 ### core/director_proposals/ — 专业输入、schema、parser 与 validator
 

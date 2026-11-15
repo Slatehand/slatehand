@@ -66,7 +66,7 @@ from .narration_commands import (
     parse_narration_cue_update,
     parse_narration_selection_clear,
 )
-from .reference_commands import LookOperationsPatch, parse_look_operations_patch
+from .reference_commands import ReferenceOperationsPatch, parse_reference_operations_patch
 from .run_commands import RunResume, RunTarget, parse_run_resume, parse_run_target
 from .script_operations import ScriptOperationsPatch, parse_script_operations_patch
 from .video_commands import (
@@ -260,13 +260,13 @@ class DirectorCommandStore(Protocol):
         command_id: str,
     ) -> tuple[StructuredDirectorDocument, CommandReceipt]: ...
 
-    def apply_look_operations(
+    def apply_reference_operations(
         self,
-        patch: LookOperationsPatch,
+        patch: ReferenceOperationsPatch,
         *,
         expected_revision: int,
         command_id: str,
-    ) -> tuple[StructuredDirectorDocument, CommandReceipt]: ...
+    ) -> tuple[StructuredDirectorDocument, CommandReceipt, dict[str, object]]: ...
 
     def cancel_director_run_command(
         self,
@@ -349,6 +349,18 @@ def _execute_location_operations(
 ) -> CommandExecution:
     patch = _parse_arguments(parse_location_operations_patch, command.arguments)
     document, receipt, data = store.apply_location_operations(
+        patch,
+        expected_revision=command.expected_revision,
+        command_id=director_command_id(command),
+    )
+    return CommandExecution(document, receipt, data)
+
+
+def _execute_reference_operations(
+    store: DirectorCommandStore, command: DirectorCommand
+) -> CommandExecution:
+    patch = _parse_arguments(parse_reference_operations_patch, command.arguments)
+    document, receipt, data = store.apply_reference_operations(
         patch,
         expected_revision=command.expected_revision,
         command_id=director_command_id(command),
@@ -480,9 +492,7 @@ _COMMAND_SPECS: dict[str, _CommandSpec] = {
         _parse(parse_keyframe_candidate_selection), "select_keyframe_candidate"
     ),
     "location.apply_operations": _CommandSpec(None, _execute_location_operations),
-    "reference.apply_look_operations": _CommandSpec(
-        _parse(parse_look_operations_patch), "apply_look_operations"
-    ),
+    "reference.apply_operations": _CommandSpec(None, _execute_reference_operations),
     # 地点图片选择只开放给人类：不在 Agent 操作白名单（core.application.caller）。
     "location.select_image": _CommandSpec(
         _parse(parse_location_image_selection), "select_location_image"

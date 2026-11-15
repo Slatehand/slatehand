@@ -27,6 +27,10 @@ handler 协调，回到同一 Store 与 Generation 规则。Web 按钮与 Agent 
 `clear_image_selection`；scope 声明 `location_ids`、`scene_ids`，同一 patch 新建项用局部 `key` 互相引用，回执 data 返回
 `created_ids`。Shot/Keyframe 不绑定地点图片。候选选择 `location.select_image` 只开放给人类，不在 Agent 操作白名单。
 
+`reference.apply_operations` 是 Agent 与人类共用的引用库编辑入口：角色卡与造型的增删改、造型图与参考音色的选定或取消、
+旁白身份修改；同一 patch 新建的角色卡与造型用局部 `key` 互引，回执 data 返回 `created_ids`。脚本仍有 Shot 可见角色或对白
+说话者引用的角色卡拒绝删除。
+
 `video.update_recipe_inputs` 原子保存 Segment 视频正文、当前 recipe 的 `bindings` 与机制 `params`，人类与 Agent 共用同一 parser 与校验；`video.clear_selection` 与 `video.clear_upscale`（只撤销超分、保留所选原视频）仍只开放给人类。
 
 `project.apply_repair_patch` 只处理没有正式命令覆盖、已授权且目标唯一的白名单字段，并持久化 `CapabilityGapAlert`；

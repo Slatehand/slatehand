@@ -8,7 +8,7 @@ L2 领域变换纯函数：接收权威 `StructuredDirectorDocument`，执行校
 - `final.py`：进入成片阶段、最终成片候选选择与清除、Approval、重新开放生产。
 - `generation.py`：Generation 目标校验、创建、状态更新、完成回收（全景取景成功时把确定性产物选给新建普通地点图片）、启动时中断提交恢复。
 - `asset.py`：导入校验、音频后处理/截取 Generation 构建、删除计划、参考图挂接。
-- `reference.py`：角色造型新增与修改，以及写入造型图（`set_look_asset`，设定图候选与资产库图片两条选择入口共用）。
+- `reference.py`：引用库编辑（`reference.apply_operations`：角色卡、造型、造型图、参考音色与旁白身份的增删改与选定，脚本仍引用的角色拒绝删除），以及人类选图入口共用的 `set_look_asset`。
 - `run.py`：DirectorRun cursor、进度、等待、恢复与取消。
 
 脚本、Keyframe、repair 与视频字段的变换位于上一级的 `script_mutations.py`、`keyframe_mutations.py`、

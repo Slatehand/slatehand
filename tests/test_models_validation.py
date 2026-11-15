@@ -756,25 +756,24 @@ def test_document_rules(store_factory):
             "generation 输出 Asset 不存在。",
         ),
         (
-            dict(
-                generations=(
-                    make_generation(
-                        ReferenceGenerationKind.CHARACTER_VOICE,
-                        GenerationOperation.VOICE_DESIGN,
-                        sample_text="文",
-                        seed=1,
-                    ),
-                )
-            ),
-            "角色音色 Generation 的目标不存在。",
-        ),
-        (
             dict(final_approval=FinalApproval(ID_D, ID_B, ID_D, ID_B, 1, 1)),
             "最终 Approval 只能存在于已批准状态。",
         ),
     ]
     for changes, message in cases:
         _expect(document, message, **changes)
+
+
+def test_document_keeps_voice_candidates_of_deleted_characters(store_factory):
+    """角色卡删除后其音色候选作为历史保留，与已删除造型的设定图候选一致。"""
+    document = store_factory().read()
+    orphan = make_generation(
+        ReferenceGenerationKind.CHARACTER_VOICE,
+        GenerationOperation.VOICE_DESIGN,
+        sample_text="文",
+        seed=1,
+    )
+    assert replace(document, generations=(orphan,)).generations == (orphan,)
 
 
 def test_document_voice_only_identity_cannot_be_visible(store_factory):

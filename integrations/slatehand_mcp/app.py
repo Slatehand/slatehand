@@ -593,7 +593,7 @@ def _argument_issues(exc: ValueError, arguments: object) -> list[dict[str, objec
 
 
 _COMPACT_OPERATION_TOOLS = frozenset(
-    {"edit_script", "edit_keyframes", "edit_locations", "edit_looks"}
+    {"edit_script", "edit_keyframes", "edit_locations", "edit_references"}
 )
 _PROPOSAL_CAPABILITY_TO_TOOL = {
     "script": "script_proposal",

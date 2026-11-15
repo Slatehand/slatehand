@@ -116,7 +116,7 @@ Store 拒绝任何让某层从 true 变回 false 的写入。上游回改只清�
 | 实体 | 关键字段与约束 |
 | --- | --- |
 | `CharacterCard` | `name`（项目内大小写不敏感唯一）；`visual_description` 非空 = 可见角色，**null = 非出镜声音**（此时 `voice_description` 必填、`looks` 必须为空，不能出现在任何可见角色列表、不能生成人像）；`looks` ≤ 8 套，是角色图的唯一来源；`voice_description` ≤ 500；`voice_reference_asset_id` + `voice_reference_transcript`（克隆所需完整文字稿） |
-| `CharacterLook` | 角色的一套造型：Core 分配的 `id`（全库唯一）、`name`（≤ 100，同一角色内唯一）、`appearance`（服装、发型、配饰、身体状态，≤ 2000）、`usage`（使用场合，≤ 1000）、`selected_asset_id`（人类选定的造型图，图片 Asset 或 null） |
+| `CharacterLook` | 角色的一套造型：Core 分配的 `id`（全库唯一）、`name`（≤ 100，同一角色内唯一）、`appearance`（服装、发型、配饰、身体状态，≤ 2000）、`usage`（使用场合，≤ 1000）、`selected_asset_id`（人类或 Agent 选定的造型图，图片 Asset 或 null） |
 | `NarratorProfile` | 独立旁白身份，ID 不得与角色卡重复；`name` + 所选语言各一套 `NarratorVoice`（`zh` / `en`，未选语言为 null）；无旁白时为 null |
 | `NarratorVoice` | 单一语言的旁白音色：`voice_description` 必填（≤ 500）；`voice_reference_asset_id`（WAV）+ `voice_reference_transcript`（克隆所需完整文字稿）。中文 Cue 只用 `zh` 克隆、英文 Cue 只用 `en` 克隆，缺哪种语言的参考音色或文字稿就不能合成该语言 |
 

@@ -82,12 +82,13 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
 - 结构化脚本生成后始终使用同一个导演台页面；左侧导航为 Scene → Segment，Scene 页以“镜头设计”列表编辑 Shot，
   Segment 页显示覆盖区间与延续说明；后续内容层嵌在原层级，不再切换到旁白、地点、Keyframe、视频或成片专用页面；
   地点库是导演台内的浮层。
-- 每个出镜角色有 1–8 套造型（`looks`：名称、外观、使用场合自由文本），引用库 proposal 一并提出，Core 分配 ID；
-  Agent 经 `reference.apply_look_operations` 新增或修改造型，删除只由人类完成。造型是角色图的唯一单位：每套造型
-  至多一张人类选定的造型图（`selected_asset_id`，来自设定图候选或资产库已有图片），角色卡不再有游离参考图。
+- 每个出镜角色有 1–8 套造型（`looks`：名称、外观、使用场合自由文本），引用库 proposal 一并提出，Core 分配 ID。
+  引用库建立后 Agent 与人类拥有同样的编辑权：Agent 经 `reference.apply_operations` 原子地增删改角色卡与造型、选定或取消
+  造型图与参考音色、修改旁白身份，经 `reference.design_voice` 设计参考音色；脚本仍引用的角色卡拒绝删除。造型是角色图的
+  唯一单位：每套造型至多一张选定的造型图（`selected_asset_id`，来自设定图候选或资产库已有图片），角色卡不再有游离参考图。
   设定图：柔和浅灰底、固定 2:1，左侧四视角、右侧头部正面特写，只有一套版式：主体描述在前，版式不含只属于人的措辞，
   非人生物靠提示词约束按真实生物绘制、只画主体不画环境（不设形体标记字段）。提示词由 Core 从视觉描述与造型外观编译，
-  人类可在生成前查看并编辑完整提示词（原样提交，重试沿用；Agent 不写设定图提示词），
+  人类可在生成前查看并编辑完整提示词，Agent 也可经 `prompt_text` 提交完整提示词（原样提交，重试沿用），
   画幅写进提示词的图片插件（manifest `image_prompt` 约定）由 Core 在提示词里写画幅与 4K 分辨率，画幅由画布保证的插件沿用其全局档位。`reference.generate_look_sheet` 只接收造型 ID 与 ≤ 4 张
   显式身份参考，只新增候选；Keyframe 与普通地点图片使用项目画幅，造型设定图与地点全景图固定 2:1。
 - 地点库（`location_library`）保存跨 Scene 共享的固定空间：Core 分配稳定 ID 的地点、固定陈设与主光、状态变体和彼此独立的图片。
@@ -165,7 +166,7 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
 - Segment 视频候选的选择只要求“成功、未隐藏、属于该 Segment 且有 MP4 产物”，由用户决定选哪一条。
   候选生成时的关键帧、提示词或参考输入快照变化只作软提示（快照中的 `inputs_outdated`），不阻止选择，
   也不阻止超分、Scene 成片和最终装配使用它；不因此把已生成候选降级为不可选历史。
-- 每个项目在外部 Agent 中使用 Director 职责；Core 不持有厂商会话。引用库、脚本、旁白、地点、Keyframe、视频提示词和生产检查都是它按需使用的 Skill/类型化能力，不拥有独立 Thread、对话、阶段或权限。Director 可以提出类型化的脚本回改、地点、Keyframe、Segment 视频或超分动作并采用 Keyframe 候选，但不能绕过 Core 校验、其它候选选择和审核。
+- 每个项目在外部 Agent 中使用 Director 职责；Core 不持有厂商会话。引用库、脚本、旁白、地点、Keyframe、视频提示词和生产检查都是它按需使用的 Skill/类型化能力，不拥有独立 Thread、对话、阶段或权限。Director 可以提出类型化的脚本回改、引用库、地点、Keyframe、Segment 视频或超分动作并采用 Keyframe、对白 WAV、Segment 其他图片、造型图与参考音色候选，但不能绕过 Core 校验、其它候选选择和审核。
 - 阶段能力按 `workspace_layers` 累加；后续阶段继承前面已解锁能力。上游回改只失效相关产物和生产基线，不退回阶段、不重锁入口；历史 Asset/Generation 保留。Agent 工作期间仍锁定冲突写入，Approval 后仍须显式重新开放生产。
 - 相邻 Segment（无论是否共享边界 Shot）默认硬切，仅边界 Keyframe identity 相同且两侧都启用才做 0.1 秒系统接缝融合（`seam_blend`），不是导演 dissolve；跨 Scene 使用同一规则。用户选择成片后仍需单独 Approval。
 - Scene 成片是 Scene 内已审核 Segment 视频加旁白的确定性渲染结果；最终成片装配只按脚本顺序拼接各 Scene 成片的字节，不再读取原始 Segment 或重新混入旁白。每个 Scene 都必须存在基于当前 Segment 视频与旁白选择生成的 Scene 成片，缺失或过期的 Scene 阻止最终装配并一次列出；重新生成或删除 Scene 成片会作废已建立的装配计划。
@@ -179,9 +180,9 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
   Agent 不能跨域复制 Asset。
 - 本机用户启动的外部 Agent 获得当前项目、有限期的 `project.execute` 委托，仅可调用既有 Agent 操作白名单。
   启动不发送任务，询问下一步只读取；具体执行等待用户指令，由外部 Agent 判断意图。Core 校验操作/状态/范围/版本，
-  不以 Agent 自报正文授予能力，除 Keyframe 候选、对白 WAV 候选与 Segment 其他图片选图外不开放候选选择，也不开放 Approval、人类操作或直接项目文件写入。其它部署默认仍使用精确 grant。
+  不以 Agent 自报正文授予能力，除 Keyframe 候选、对白 WAV 候选、Segment 其他图片选图与引用库造型图/参考音色外不开放候选选择，也不开放 Approval、人类操作或直接项目文件写入。其它部署默认仍使用精确 grant。
 
-- Agent 只能提交类型化 proposal 与白名单命令；不能直接写项目文件、选择 Keyframe、对白 WAV 与 Segment 其他图片以外的候选、批准、发布或调用 Provider。
+- Agent 只能提交类型化 proposal 与白名单命令；不能直接写项目文件、选择 Keyframe、对白 WAV、Segment 其他图片、造型图与参考音色以外的候选、批准、发布或调用 Provider。
   Keyframe 由 Agent 或人类经同一字段选定本帧候选、另一 Keyframe 已选图（原样复用）或任一项目图片；Segment 其他图片由 Agent 或人类经同一 `video.select_reference_image`
   选入任一项目图片（生成候选、关键帧已选图或资产库图片）。任一方随时可改选，便于自动化连贯生产。
 - Web 只消费服务端资源、状态、影响预览和 `allowed_actions`；不得复制状态机或猜测下一步。

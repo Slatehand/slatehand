@@ -1400,7 +1400,7 @@ class StructuredDirectorService:
     async def select_look_asset(
         self, *, card_id: str, look_id: str, asset_id: str, expected_revision: int
     ) -> StructuredDirectorDocument:
-        """人类把资产库已有图片设为造型图；Agent 没有此入口。"""
+        """人类入口：把资产库已有图片设为造型图；Agent 经 reference.apply_operations 写同一字段。"""
         async with self._lock:
             return self._store.select_look_asset(
                 card_id=card_id,
@@ -1412,7 +1412,7 @@ class StructuredDirectorService:
     async def clear_look_asset(
         self, *, card_id: str, look_id: str, expected_revision: int
     ) -> StructuredDirectorDocument:
-        """人类取消造型图；Agent 没有此入口。"""
+        """人类入口：取消造型图；Agent 经 reference.apply_operations 写同一字段。"""
         async with self._lock:
             return self._store.clear_look_asset(
                 card_id=card_id, look_id=look_id, expected_revision=expected_revision
@@ -1482,7 +1482,7 @@ class StructuredDirectorService:
         generation_id: str,
         expected_revision: int,
     ) -> StructuredDirectorDocument:
-        """人类为造型选定设定图；Agent 没有此入口。"""
+        """人类入口：为造型选定设定图；Agent 经 reference.apply_operations 写同一字段。"""
         async with self._lock:
             return self._store.select_look_sheet(
                 card_id=card_id,
@@ -1501,7 +1501,7 @@ class StructuredDirectorService:
     ) -> StructuredDirectorDocument:
         """造型设定图生成；比例由 Core 固定。
 
-        Agent 只用 Core 编译的提示词；人类可提交编辑过的完整提示词（prompt_text）。
+        prompt_text 省略或 null 时由 Core 编译；人类与 Agent 都可提交编辑过的完整提示词，原样提交。
         """
         return await self._media.generate_look_sheet(
             look_id=look_id,

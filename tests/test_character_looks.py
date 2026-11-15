@@ -33,7 +33,7 @@ from core.structured_director.models import (
     transition_generation,
 )
 from core.structured_director.store import StructuredDirectorStore
-from integrations.slatehand_mcp.production_tools import Generate, LookEdit, translate
+from integrations.slatehand_mcp.production_tools import Generate, ReferenceEdit, translate
 
 A, B, C, D = "a" * 32, "b" * 32, "c" * 32, "d" * 32
 
@@ -112,7 +112,7 @@ def test_reference_proposal_carries_looks_and_rejects_voice_only_looks() -> None
 def _look_ops(store, document, operations, key="looks"):
     return DirectorCommandRegistry(store).execute(
         DirectorCommand(
-            "reference.apply_look_operations",
+            "reference.apply_operations",
             document.revision,
             f"{key}-{document.revision}",
             {"operations": operations},
@@ -129,6 +129,7 @@ def test_look_operations_add_update_and_reject_voice_only(tmp_path) -> None:
         [
             {
                 "op": "add_look",
+                "key": "new-look",
                 "character_id": card.id,
                 "name": "受伤",
                 "appearance": "破损战斗服，左臂绷带",
@@ -169,6 +170,7 @@ def test_look_operations_add_update_and_reject_voice_only(tmp_path) -> None:
             [
                 {
                     "op": "add_look",
+                    "key": "new-look",
                     "character_id": C,
                     "name": "x",
                     "appearance": "y",
@@ -178,9 +180,12 @@ def test_look_operations_add_update_and_reject_voice_only(tmp_path) -> None:
         )
 
 
-def test_agent_can_edit_and_generate_looks_but_not_select() -> None:
-    assert {"reference.apply_look_operations", "reference.generate_look_sheet"} <= _AGENT_OPERATIONS
-    assert not any("select" in name and "look" in name for name in _AGENT_OPERATIONS)
+def test_agent_has_full_reference_library_write_access() -> None:
+    assert {
+        "reference.apply_operations",
+        "reference.generate_look_sheet",
+        "reference.design_voice",
+    } <= _AGENT_OPERATIONS
 
 
 def _project_with_look(tmp_path):
@@ -192,6 +197,7 @@ def _project_with_look(tmp_path):
         [
             {
                 "op": "add_look",
+                "key": "new-look",
                 "character_id": card.id,
                 "name": "日常",
                 "appearance": "灰色连帽衫，牛仔裤",
@@ -435,13 +441,13 @@ def test_mcp_look_tools_translate_to_core_commands() -> None:
             Generate(
                 **bad, target_id=target, project_id=target, expected_revision=3, idempotency_key="k"
             )
-    edit = LookEdit(
+    edit = ReferenceEdit(
         operations=[{"op": "update_look", "look_id": B, "fields": {"usage": "第二幕"}}],
         project_id=target,
         expected_revision=3,
         idempotency_key="k",
     )
-    assert translate("edit_looks", edit)[0] == "reference.apply_look_operations"
+    assert translate("edit_references", edit)[0] == "reference.apply_operations"
 
 
 def _card_body(card, revision, looks):
@@ -470,6 +476,7 @@ def test_removed_look_sheet_candidates_release_asset_usage(tmp_path, removal) ->
         [
             {
                 "op": "add_look",
+                "key": "new-look",
                 "character_id": card.id,
                 "name": "原造型",
                 "appearance": "蓝衣",
@@ -505,6 +512,7 @@ def test_removed_look_sheet_candidates_release_asset_usage(tmp_path, removal) ->
             [
                 {
                     "op": "add_look",
+                    "key": "new-look",
                     "character_id": card.id,
                     "name": "新造型",
                     "appearance": "蓝衣",

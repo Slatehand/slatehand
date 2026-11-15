@@ -1,6 +1,6 @@
 ---
 name: slatehand-reference-library
-description: 在 Slatehand 首次进入结构化导演台时，从已确认材料中提取需要保持视觉或声音一致的角色及其造型；之后按用户要求增改造型、生成造型设定图。造型是角色图的唯一单位。不复述剧情、表演、场景或镜头信息。
+description: 在 Slatehand 首次进入结构化导演台时，从已确认材料中提取需要保持视觉或声音一致的角色及其造型；引用库建立后按用户要求增删改角色卡与造型、生成并选定造型图与参考音色、修改旁白身份。造型是角色图的唯一单位。不复述剧情、表演、场景或镜头信息。
 ---
 
 # Slatehand 角色与声音引用准备
@@ -22,5 +22,6 @@ description: 在 Slatehand 首次进入结构化导演台时，从已确认材�
 并写清这套造型用在故事的什么时期或场合。
 
 生成卡片前读取 [references/card-contract.md](references/card-contract.md) 与
-[references/voice-descriptions.md](references/voice-descriptions.md)。引用库建立后增改造型、生成造型设定图时
-读取 [references/look-sheets.md](references/look-sheets.md)。
+[references/voice-descriptions.md](references/voice-descriptions.md)。引用库建立后，Agent 与用户拥有同样的编辑权：
+修改角色卡、造型、造型图、参考音色或旁白身份时读取 [references/library-edits.md](references/library-edits.md)，
+生成造型设定图时读取 [references/look-sheets.md](references/look-sheets.md)。

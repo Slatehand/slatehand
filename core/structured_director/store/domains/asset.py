@@ -22,6 +22,7 @@ from core.structured_director.models import (
     StructuredDirectorDocument,
 )
 from core.structured_director.mutations import asset as _asset_mutations
+from core.structured_director.mutations.reference import reject_script_usage
 from core.structured_director.store import _generation_timestamp as _generation_timestamp
 from core.structured_director.store.pipeline import MutationResult as MutationResult
 from core.structured_director.store.pipeline import commit_mutation as commit_mutation
@@ -109,11 +110,15 @@ class AssetDomain(_DomainBase):
     ) -> StructuredDirectorDocument:
         def mutate(document: StructuredDirectorDocument) -> MutationResult:
             if kind == "characters":
+                card = next(
+                    (c for c in document.reference_library.characters if c.id == card_id), None
+                )
+                if card is None:
+                    raise ValueError("角色卡不存在。")
+                reject_script_usage(document, card)
                 cards = tuple(
                     item for item in document.reference_library.characters if item.id != card_id
                 )
-                if len(cards) == len(document.reference_library.characters):
-                    raise ValueError("角色卡不存在。")
                 library = replace(document.reference_library, characters=cards)
             else:
                 raise ValueError("未知的卡片类型。")

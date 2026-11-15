@@ -197,11 +197,15 @@ class AudioSubmission:
         )
         async with self._lock:
             document = self._store.read()
-            if (
-                narrator_language is not None
-                and narrator_language not in document.narration_languages
-            ):
-                raise ValueError("项目未启用该旁白语言。")
+            if narrator_language is None:
+                if not any(card.id == card_id for card in document.reference_library.characters):
+                    raise ValueError("角色卡不存在。")
+            else:
+                if narrator_language not in document.narration_languages:
+                    raise ValueError("项目未启用该旁白语言。")
+                narrator = document.reference_library.narrator
+                if narrator is None or narrator.id != card_id:
+                    raise ValueError("旁白音色身份不存在。")
             request_seed = (
                 seed
                 if _retry_of is not None

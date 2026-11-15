@@ -75,7 +75,8 @@ def workflow_state(document, *, provider_catalog=None):
                 )
             ],
         )
-    if not references_reviewed(document):
+    # 引用审核只把关首次生成脚本；脚本建立后引用库的回改不让主流程退回审核。
+    if script is None and not references_reviewed(document):
         return _workflow_result(
             document,
             "reference_library",
@@ -278,7 +279,6 @@ def _location_recommendations(document):
     script = document.director_script
     if (
         script is None
-        or not references_reviewed(document)
         or script.production_baseline_revision != script.revision
         or document.active_director_run is not None
     ):

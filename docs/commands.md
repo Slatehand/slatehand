@@ -99,12 +99,28 @@ Core 分配。不支持单独移动 Shot：整场并入上一场用 `merge_adjac
 
 | 命令 | 调用方 | 要点 |
 | --- | --- | --- |
-| `reference.apply_look_operations` | A | 1–32 项操作：`add_look`（`character_id`、`name`、`appearance`、`usage`；只用于出镜角色，Core 分配造型 ID）、`update_look`（`look_id` + `name` / `appearance` / `usage` 的非空子集）；不删除造型、不失效已选设定图；内容未变为 noop |
-| `reference.generate_look_sheet` | A | `look_id` + `identity_asset_ids`（0–4 张项目图片）；Core 编译设定图提示词并以 2:1 提交，只新增 `character_look_sheet` 候选；Agent 不能自带提示词 |
-| 人类整卡保存 | H | `PUT characters/{id}` 携带 `looks`（只有 `id/name/appearance/usage`），新造型 `id` 为 null 由 Core 分配，其余 ID 必须是该卡已有造型，已有造型图沿用；删除造型只在这里完成，并剪除 Keyframe 对它的选择 |
+| `reference.apply_operations` | A | 1–64 项操作按顺序原子执行，见下表；同一 patch 新建的角色卡与造型用局部 `key` 互引，回执 `data.created_ids` 返回 key → 正式 ID；引用库内容未变为 noop |
+| `reference.generate_look_sheet` | A | `look_id` + `identity_asset_ids`（0–4 张项目图片）+ 可选 `prompt_text`；省略时 Core 编译设定图提示词，给出时原样提交；固定 2:1，只新增 `character_look_sheet` 候选 |
+| `reference.design_voice` | A | `target_id` + `language` + `voice_description` + `sample_text` + 可选 `seed`（默认 42，Core 逐次递增）：`language = null` 时目标是角色卡，`zh` / `en` 时目标是旁白身份；只新增 `character_voice` / `narrator_voice` 候选 |
+| 人类整卡保存 | H | `PUT characters/{id}` 携带 `looks`（只有 `id/name/appearance/usage`），新造型 `id` 为 null 由 Core 分配，其余 ID 必须是该卡已有造型，已有造型图沿用；删除造型时剪除 Keyframe 对它的选择 |
 | 设定图提示词 | H | `POST characters/{id}/looks/{look_id}/sheet-preview`（`identity_asset_ids`）只读返回 Core 编译的完整提示词；`sheet-generations` 可带 `prompt_text`（人类编辑过的完整提示词，原样提交），省略或 null 时由 Core 编译 |
 | 造型图选择 | H | `POST characters/{id}/looks/{look_id}/select-sheet`（成功设定图候选）或 `/select-asset`（资产库已有图片）：写入 `selected_asset_id`；Keyframe 引用造型，不需要改写 |
 | 造型图取消 | H | `POST characters/{id}/looks/{look_id}/clear-selection`：清空 `selected_asset_id`，Keyframe 不改写，引用该造型的帧在重新选图前不能生成；无选择时 noop |
+
+`reference.apply_operations` 的操作：
+
+| 操作 | 要点 |
+| --- | --- |
+| `add_character` | `key`、`name`、`visual_description`（null 表示非出镜声音）、`voice_description`、`looks`（`key/name/appearance/usage`；非出镜声音必须为空） |
+| `update_character` | `character_id` + `name` / `visual_description` / `voice_description` / `voice_reference_transcript` 的非空子集；保留造型与造型图 |
+| `delete_character` | 脚本仍有 Shot 可见角色或对白说话者引用时拒绝并列出“场景 N－镜头 N / 片段 N”；Keyframe 与视频参考图规划中的选择随之剪除；历史候选与 Asset 保留 |
+| `add_look` / `update_look` / `delete_look` | 新增（`character_id` 可为新建角色的 key）、改文字（不失效已选造型图）、删除（剪除 Keyframe 对它的选择） |
+| `select_look_image` / `clear_look_image` | `source=generation`（该造型成功、未隐藏的设定图候选）或 `asset`（任一项目图片）写入 `selected_asset_id`；取消后引用该造型的帧在重新选图前不能生成 |
+| `select_voice` / `clear_voice` | 角色给 `character_id`、旁白给 `language`；`source=generation` 采用该目标同语言的成功音色候选（描述与文字稿随候选），`asset` 采用任一项目 WAV 且必须给完整 `transcript`；`clear_voice` 解除参考 WAV 与文字稿 |
+| `update_narrator` | `name` 与已启用语言 `zh` / `en` 的 `voice_description` / `voice_reference_transcript` 子集 |
+
+所有操作作用在同一份引用库上，最后经唯一的引用库变更入口落盘：Keyframe 对已删除角色/造型的选择被剪除；角色实际进入对白 TTS 的
+音色输入（参考 WAV + 文字稿，或无参考时的描述）变化时，清除其所在 Segment 的对白音频选择、发声时序与视频选择，回执 `invalidated` 列出。
 
 ## 旁白
 
@@ -219,7 +235,7 @@ Core 分配。不支持单独移动 Shot：整场并入上一场用 `merge_adjac
 | `final.approve` | H | 以精确 Asset 一次批准所选语言版本；要求本轮明确批准，且 Asset、Generation、装配与 revision 完全对应 |
 | `final.reopen_production` | H | 清除当前装配与 Approval，回到视频审核位置；历史与内容层保留 |
 
-候选选择、普通正面反馈与最终批准是三种不同权限；只有 Keyframe 候选选择对 Agent 开放。
+候选选择、普通正面反馈与最终批准是三种不同权限；对 Agent 开放的候选选择只有 Keyframe、对白 WAV、Segment 其他图片，以及引用库的造型图与参考音色。
 
 ## 领域 run
 

@@ -10,7 +10,7 @@ from dataclasses import replace
 from uuid import uuid4
 
 from core.director_commands import CommandReceipt
-from core.director_commands.reference_commands import LookOperationsPatch
+from core.director_commands.reference_commands import ReferenceOperationsPatch
 from core.director_proposals import ReferenceLibraryProposal
 from core.structured_director.models import (
     CharacterCard,
@@ -45,22 +45,27 @@ class _DomainBase:
 
 
 class ReferenceDomain(_DomainBase):
-    def apply_look_operations(
+    def apply_reference_operations(
         self,
-        patch: LookOperationsPatch,
+        patch: ReferenceOperationsPatch,
         *,
         expected_revision: int,
         command_id: str,
-    ) -> tuple[StructuredDirectorDocument, CommandReceipt]:
+    ) -> tuple[StructuredDirectorDocument, CommandReceipt, dict[str, object]]:
+        """原子应用引用库编辑；返回局部 key 到正式 ID 的映射。"""
+        created: dict[str, str] = {}
+
         def mutate(document: StructuredDirectorDocument) -> MutationResult:
-            outcome = _reference.apply_look_operations(document, patch, command_id)
+            outcome = _reference.apply_reference_operations(document, patch, command_id)
+            created.update(outcome.created_ids)
             return MutationResult(outcome.document, outcome.receipt, write=outcome.write)
 
-        return commit_mutation(
+        document, receipt = commit_mutation(
             self,
             loader=lambda: self._editable_document(expected_revision),
             mutator=mutate,
         )
+        return document, receipt, {"created_ids": dict(created)}
 
     def begin_reference_proposal(
         self, *, raw_user_request: str = "生成引用库 proposal"

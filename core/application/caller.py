@@ -99,7 +99,8 @@ _AGENT_OPERATIONS = {
     "dialogue.set_timing",
     "dialogue.select_candidate",
     "reference.generate_look_sheet",
-    "reference.apply_look_operations",
+    "reference.design_voice",
+    "reference.apply_operations",
 }
 
 

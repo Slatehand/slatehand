@@ -322,12 +322,6 @@ def _validate_assets_and_generations(document) -> None:
             generation.retry_of not in generation_by_id or generation.retry_of == generation.id
         ):
             raise ValueError("generation.retry_of 不存在或指向自身。")
-        if (
-            generation.kind is ReferenceGenerationKind.CHARACTER_VOICE
-            and generation.target_id
-            not in {card.id for card in document.reference_library.characters}
-        ):
-            raise ValueError("角色音色 Generation 的目标不存在。")
         if generation.kind is ReferenceGenerationKind.NARRATOR_VOICE and (
             narrator is None or generation.target_id != narrator.id
         ):

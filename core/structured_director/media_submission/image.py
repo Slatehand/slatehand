@@ -137,9 +137,9 @@ class ImageSubmission:
         prompt_text: str | None = None,
         _retry_of: ReferenceGeneration | None = None,
     ) -> StructuredDirectorDocument:
-        """提交造型设定图候选：固定 2:1；成功只保存候选，由人类选择。
+        """提交造型设定图候选：固定 2:1；成功只保存候选，由人类或 Agent 显式选择。
 
-        prompt_text 为 None 时由 Core 编译版式提示词；人类编辑过的完整提示词原样提交，
+        prompt_text 为 None 时由 Core 编译版式提示词；人类或 Agent 给出的完整提示词原样提交，
         重试同样沿用。
         """
         async with self._lock:

@@ -707,12 +707,13 @@ def test_agent_edits_looks_and_generates_sheet_idempotently(tmp_path):
         added, _command = await call(
             store,
             provider,
-            "reference.apply_look_operations",
+            "reference.apply_operations",
             "add-look",
             {
                 "operations": [
                     {
                         "op": "add_look",
+                        "key": "rain",
                         "character_id": card.id,
                         "name": "雨衣",
                         "appearance": "黄色雨衣，湿透的头发",

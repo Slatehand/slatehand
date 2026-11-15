@@ -89,22 +89,22 @@ sequenceDiagram
 - Agent 只读取完整 `director_plan_markdown`，提出需要跨镜头一致的角色卡（可见角色或非出镜声音）以及存在旁白时的独立旁白身份。
   每个可见角色带 1–8 套造型（look）：造型名、外观（服装、发型、配饰、身体状态）与使用场合（自由文本，如“第一幕童年时期”；
   此时还没有 Scene ID）。Core 分配卡片与造型 ID。
-- 造型图、参考音色的生成只新增候选；用户显式采用后才成为当前参考。隐藏候选不删除历史。
+- 造型图、参考音色的生成只新增候选；用户或 Agent 显式采用后才成为当前参考。隐藏候选不删除历史。
 
 ### 造型与设定图
 
 ```mermaid
 flowchart LR
-    plan[proposal 或 edit_looks<br/>造型名 · 外观 · 使用场合] --> look[(CharacterLook)]
+    plan[proposal 或 edit_references<br/>造型名 · 外观 · 使用场合] --> look[(CharacterLook)]
     look --> gen["reference.generate_look_sheet<br/>look_id + 0–4 张身份参考"]
     gen --> compile[Core 编译提示词<br/>固定版式 · 2:1]
     compile --> cand[character_look_sheet 候选]
-    cand -->|人类选择| sel["CharacterLook.selected_asset_id"]
-    lib[资产库已有图片] -->|人类选择| sel
+    cand -->|人类或 Agent 选择| sel["CharacterLook.selected_asset_id"]
+    lib[资产库已有图片] -->|人类或 Agent 选择| sel
     sel --> kf[Keyframe 按造型场合选造型]
 ```
 
-- **造型是角色图的唯一单位**：角色卡上的图只能是某套造型的造型图，每套至多一张。造型图有两种来源，都只由人类选定：
+- **造型是角色图的唯一单位**：角色卡上的图只能是某套造型的造型图，每套至多一张。造型图有两种来源，人类与 Agent 都可选定：
   选择设定图候选，或把资产库里已有图片（导入的照片、外部设定图）设为造型图。
 - 每套造型可生成一张**设定图**（柔和浅灰底，固定 2:1）：左侧约四分之三为同一主体的正面、正侧、背面与最能展示形态的第四个角度
   （直立人形取四分之三侧，伏地、爬行或多足生物取俯视），右侧约四分之一为头部正面特写。只有一套版式、没有形体标记：
@@ -112,19 +112,21 @@ flowchart LR
   并明确要求非人生物按真实生物绘制、不得人形化或拟人化、只画主体本身而不画巢穴、蛛网等所处环境。
   身份参考图（≤ 4 张项目图片）作为附件显式传入；Core 提供实际输入清单，不把自动引用说明或默认用途拼入提示词。
 - 人类在造型图弹窗里看到按当前图片插件约定编译的完整提示词（`sheet-preview`，只读不写），可直接编辑后生成；
-  编辑过的提示词原样提交并记入 Generation，重试沿用当时提交的提示词与身份参考。Agent 只能用 Core 编译的提示词。
+  编辑过的提示词原样提交并记入 Generation，重试沿用当时提交的提示词与身份参考。Agent 默认用 Core 编译的提示词，也可经 `prompt_text` 提交完整提示词。
 - 分辨率按插件上限：画幅由画布保证的插件沿用其全局分辨率档位，不写画幅句；画幅写进提示词的插件
   由 Core 在提示词里写“2:1 横构图、4K（4096×2048）”。
-- 生成只新增候选，人类在角色卡的造型图弹窗中选择，也可在造型上取消造型图。Keyframe 引用造型而不是图片，改选或取消造型图
+- 生成只新增候选，人类在角色卡的造型图弹窗中选择，Agent 经 `select_look_image` 选择；双方都可取消造型图。Keyframe 引用造型而不是图片，改选或取消造型图
   不需要改写 Keyframe，也不失效已有 Keyframe 候选；取消后引用该造型的帧在重新选图前不能生成。
-- 人类在角色卡上增删改造型（新造型 id 为 null，由 Core 分配；整卡保存只改造型文字）；删除造型时 Core 剪除 Keyframe 对它的选择，
-  该角色回到默认规则。Agent 用 `edit_looks`（`reference.apply_look_operations`）新增或修改造型，用 `generate_media` 的
-  `look_sheet`（`reference.generate_look_sheet`）在用户明确要求时生成设定图；Agent 不能删除造型或选定造型图。
-  改造型文字不失效已选造型图。
+- 引用库建立后，Agent 与人类拥有同样的编辑权。人类在角色卡上增删改（新造型 id 为 null，由 Core 分配；整卡保存只改造型文字）；
+  Agent 用 `edit_references`（`reference.apply_operations`）在一次原子 patch 里增删改角色卡与造型、选定或取消造型图与参考音色、
+  修改旁白身份，用 `generate_media` 的 `look_sheet`（`reference.generate_look_sheet`）生成设定图、`voice`（`reference.design_voice`）
+  设计参考音色。删除造型时 Core 剪除 Keyframe 对它的选择，该角色回到默认规则；脚本仍有 Shot 可见角色或对白说话者引用的角色卡
+  拒绝删除并列出位置。改造型文字不失效已选造型图；角色实际进入对白 TTS 的音色输入变化时清除相关对白与视频选择。
 - 旁白身份按已选语言各有一套独立音色（各自的音色描述、参考 WAV 与完整文字稿）。Agent proposal 分别给出
   `zh_voice_description` / `en_voice_description`（未选语言为 null）；设计、上传与采用都按语言进行，只替换同语言的那一套。
 - Clone/Direction 音色需要完整参考文字稿：用户填写，或点击按钮调用当前语音转写插件后校对回填。ASR 不对 Agent 开放。
-- **确认是摘要绑定的**：之后任何引用内容变化都会让摘要不匹配，主流程回到“等待人类确认”。已进入生产的项目不会因此回退内容层。
+- **确认是摘要绑定的**：脚本生成前任何引用内容变化都会让摘要不匹配，主流程回到“等待人类确认”。脚本建立后，确认不再把关主流程：
+  引用库回改（人类或 Agent）不会把主流程拉回引用审核，也不回退内容层。
 - 未确认引用时，脚本请求返回 409 `stage_prerequisite_not_met`，不创建 run、Generation 或回执。
 
 ## 3. 结构化脚本
