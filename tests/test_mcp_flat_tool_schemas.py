@@ -23,7 +23,7 @@ def project_schemas():
 
 def test_project_tools_have_no_top_level_combinators_when_flat():
     schemas = project_schemas()
-    assert len(schemas) == 31
+    assert len(schemas) == 32
     for name, schema in schemas.items():
         flat, _rules = flat_tool_schema(schema)
         assert flat["type"] == "object", name

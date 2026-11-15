@@ -717,6 +717,16 @@ class ReferenceImageSelection(Request):
         return self
 
 
+class LocationImageSelection(Request):
+    image_id: ID = Field(description="地点图片条目 ID（普通图、全景图或全景取景子图）。")
+    asset_id: ID = Field(
+        description=(
+            "要采用的图片 Asset：该条目成功未隐藏候选的 output_asset.id（list_candidates），"
+            "或任一项目图片 Asset；全景取景子图只接受自己的裁切候选。"
+        )
+    )
+
+
 AlarmMessage = Annotated[
     str,
     Field(
@@ -765,6 +775,7 @@ MODELS = {
     "select_keyframe_candidate": KeyframeSelection,
     "select_dialogue_candidate": DialogueSelection,
     "select_reference_image": ReferenceImageSelection,
+    "select_location_image": LocationImageSelection,
     "set_video_recipe": VideoRecipe,
     "set_dialogue_timing": DialogueTiming,
     "save_reference_image_plan": ReferenceImagePlan,
@@ -779,7 +790,8 @@ DESCRIPTIONS = {
             "删除已有对白须经用户确认后把id列入dialogue_removals。",
             "局部更新旁白正文/参数，或解除当前音频引用；不自动生成。",
             "更新 Keyframe 计划/辅助图/边界，不生成。",
-            "编辑地点语义、独立图片条目与可选Scene关系；新建项以key互引，不能选候选。",
+            "编辑地点语义、独立图片条目与可选Scene关系；新建项以key互引；"
+            "采用图片候选用 select_location_image。",
             "编辑已建立的引用库：增删改角色卡与造型、选定或取消造型图、选定或取消参考音色、"
             "修改旁白身份；同一 patch 新建项以 key 互引；不生成。",
             "生成明确授权的图片、音频或视频候选，或执行一次全景取景；"
@@ -805,6 +817,9 @@ DESCRIPTIONS = {
             "把一张项目图片选入 Segment 其他图片的 slot_index 卡片（成为实际视频输入），或移除；"
             "来源可为生成候选、关键帧已选图或任一项目图片 Asset，选前用 read_media_input 看图；"
             "已启用的首尾帧不能重复选入；人类可随时改选。",
+            "为一张地点图片条目采用图片，成为 Keyframe 可参考的地点图："
+            "该条目成功未隐藏的 location_image / panorama_capture 候选产物，或任一项目图片 Asset；"
+            "全景条目须是 2:1 等距柱状全景；选前用 read_media_input 看图；人类可随时改选。",
             "设置单Segment视频模式，不生成。",
             "按已选 TTS WAV 的真实时长设置逐句发声起点与 Segment 视频时长。",
             "新建或编辑一个 Segment 的其他图片规划，slot_index 为 0–3；"
@@ -865,6 +880,7 @@ def translate(name, request):
         "set_dialogue_timing": "dialogue.set_timing",
         "select_dialogue_candidate": "dialogue.select_candidate",
         "save_reference_image_plan": "video.save_reference_image_plan",
+        "select_location_image": "location.select_image",
     }
     if name in direct:
         return direct[name], args

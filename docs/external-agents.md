@@ -131,8 +131,8 @@ flowchart LR
 
 ## MCP 工具
 
-项目 scope 的 `tools/list` 发布 31 个工具（逐字节基线：`tests/fixtures/mcp_project_tools.json`）。没有任意 command、shell、文件、
-路径、URL、模型目录、Approval 工具，候选采用工具只有 `select_keyframe_candidate`、`select_dialogue_candidate` 与 `select_reference_image`。所有工具顶层与嵌套参数都拒绝未知字段，条件参数用公开 `oneOf` 表达，MCP runtime
+项目 scope 的 `tools/list` 发布 32 个工具（逐字节基线：`tests/fixtures/mcp_project_tools.json`）。没有任意 command、shell、文件、
+路径、URL、模型目录、Approval 工具，候选采用工具只有 `select_keyframe_candidate`、`select_dialogue_candidate`、`select_reference_image` 与 `select_location_image`。所有工具顶层与嵌套参数都拒绝未知字段，条件参数用公开 `oneOf` 表达，MCP runtime
 与 schema 共用同一参数矩阵。参数不合法时返回 `invalid_arguments`，`message` 写出第一处问题，`issues` 逐项给出字段路径、原因与期望约束
 （见[错误契约](error-contract.md#参数错误的定位信息)）；operation 数组按 `op` 判别，`edit_script` 的 `insert_shot` 以同名定义发布，
 `attach_to_segment_id` 与 `new_segment` 二选一也写在公开 schema 中。
@@ -149,6 +149,7 @@ flowchart LR
 | 选择 | `select_keyframe_candidate` | `keyframe.select_candidate`（`keyframe_id` + `source=generation\|keyframe\|asset` 与 `source_id`，分别改写为该帧成功、未隐藏的 `keyframe_image` 或抽帧 `generation_id`、另一 Keyframe 当前选中图 `source_keyframe_id`、任一项目图片 `asset_id`） |
 | | `select_dialogue_candidate` | `dialogue.select_candidate`（`dialogue_line_id` + 该句成功、未隐藏的 `dialogue_audio` `generation_id`；会清空该 Segment 全部发声起点，之后用 `set_dialogue_timing` 重新校准） |
 | | `select_reference_image` | `video.select_reference_image`（Scene scope、Segment ID、0–3 槽位；`source=generation\|keyframe\|asset` 配 `source_id`，或 `source=remove`；`description` 留空沿用已绑定说明或卡片规划用途） |
+| | `select_location_image` | `location.select_image`（`image_id` + `asset_id`：该条目成功、未隐藏候选的产物 Asset，或任一项目图片；全景条目校验 2:1，全景取景子图只接受自己的裁切产物） |
 | 规划 | `submit_proposal` | 统一入口：`capability` + `payload`；schema 按 capability 与 `payload.action` 公开完整字段：request（`raw_user_instruction`；keyframe 另需 `scene_ids` 与 Segment `target_ids`）/ get、cancel（`request_id`）/ submit（`request_id` 加内联 `proposal` 或受限 `proposal_source`）/ reject（`request_id`、`reason`） |
 | 编辑 | `edit_script` / `edit_narration` / `edit_locations` / `edit_keyframes` / `edit_references` | 各自的 `*.apply_operations` / `narration.update_cue` / `reference.apply_operations`（角色卡、造型、造型图、参考音色与旁白身份的增删改与选定，字段形状随 `reference_library` 契约下发）；`edit_narration.fields.clear_selected_audio = "zh"\|"en"` 独占一次调用并翻译为 `narration.clear_selection`；`edit_locations` 的 scope 是 `location_ids` / `scene_ids`，可编辑地点、状态、陈设、独立图片和 Scene 绑定，字段形状随 `location` 契约下发；`edit_script` 的 `insert_shot` 必须给出 `attach_to_segment_id` 或 `new_segment`，Segment 操作以 `scene_id` 为容器，保留已有对白须回传其 `id`，删除已有对白须经用户确认后列入 `dialogue_removals`（见[对白守恒](control-flow.md#对白守恒)）；`edit_keyframes` 的 `update_frame_fields.fields.extraction_suggested` 标记或取消“建议抽帧”，`fields.reuse_keyframe_id` 设置或取消（`null`）“建议复用”来源，`clear_selection` 撤销本帧选择 |
 | | `save_video_prompt` / `save_keyframe_prompt` | 不带 `recipe_inputs` 时 `video.set_prompt`；带 `recipe_inputs: {bindings, params}` 或 `attach_dialogue_audio` 时 `video.update_recipe_inputs`（正文整体保存，绑定按槽位、参数按键合并）；两者回执 `data` 带写入后的输入摘要 / 单项 `update_frame_fields` |

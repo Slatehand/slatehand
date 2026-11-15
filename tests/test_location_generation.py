@@ -456,7 +456,7 @@ def test_parallel_generation_is_rejected_and_failure_is_persisted(rig):
     assert document.generations[-1].error_code == "submission_rejected"
 
 
-def test_agent_can_generate_but_cannot_select():
+def test_agent_can_generate_and_select():
     assert "location.generate_image" in _AGENT_OPERATIONS
     assert "location.capture_panorama" in _AGENT_OPERATIONS
-    assert "location.select_image" not in _AGENT_OPERATIONS
+    assert "location.select_image" in _AGENT_OPERATIONS

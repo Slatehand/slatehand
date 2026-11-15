@@ -83,6 +83,7 @@ _AGENT_OPERATIONS = {
     "location.generate_image",
     "location.capture_panorama",
     "location.generate_set",
+    "location.select_image",
     "narration.update_cue",
     "narration.clear_selection",
     "video.save_reference_image_plan",

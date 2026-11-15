@@ -11,7 +11,7 @@
   },
   "environment": {
     "date": "2026-11-15",
-    "git_sha": "c911839eeaece9fd4f1a382447b501b42a92b5a4",
+    "git_sha": "71d5c5c36ecfaf39c36ea1d9064a7fb3ae131daf",
     "python_version": "3.12.12",
     "platform": "macOS-26.6.2-arm64-arm-64bit",
     "driver": "scripts/harness/benchmark/fake_agent_driver.py"
@@ -20,7 +20,7 @@
     "scenario_total_multiplier": 1.0
   },
   "frozen": {
-    "tools_list_bytes": 56330,
+    "tools_list_bytes": 57119,
     "scenarios": {
       "h3": {
         "total_wire_bytes": 35006
@@ -29,7 +29,7 @@
         "total_wire_bytes": 137033
       },
       "location": {
-        "total_wire_bytes": 65091
+        "total_wire_bytes": 65232
       },
       "ref2va": {
         "total_wire_bytes": 36374
@@ -47,8 +47,8 @@
       "capability": "video_prompt",
       "bootstrap": "keyframes",
       "summary": {
-        "tools_list_bytes": 56330,
-        "tool_count": 31,
+        "tools_list_bytes": 57119,
+        "tool_count": 32,
         "requests": 6,
         "input_bytes": 1527,
         "output_bytes": 33479,
@@ -132,8 +132,8 @@
       "capability": "keyframe",
       "bootstrap": "unlocked",
       "summary": {
-        "tools_list_bytes": 56330,
-        "tool_count": 31,
+        "tools_list_bytes": 57119,
+        "tool_count": 32,
         "requests": 8,
         "input_bytes": 2019,
         "output_bytes": 135014,
@@ -239,13 +239,13 @@
       "capability": "location",
       "bootstrap": "timing",
       "summary": {
-        "tools_list_bytes": 56330,
-        "tool_count": 31,
+        "tools_list_bytes": 57119,
+        "tool_count": 32,
         "requests": 6,
         "input_bytes": 1673,
-        "output_bytes": 63418,
-        "total_wire_bytes": 65091,
-        "contract_read_bytes": 20355,
+        "output_bytes": 63559,
+        "total_wire_bytes": 65232,
+        "contract_read_bytes": 20496,
         "workset_read_bytes": 28086,
         "pagination_rounds": 6,
         "wait_rounds": 0,
@@ -269,7 +269,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 159,
-          "output_bytes": 20196,
+          "output_bytes": 20337,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -324,8 +324,8 @@
       "capability": "video_prompt",
       "bootstrap": "keyframes",
       "summary": {
-        "tools_list_bytes": 56330,
-        "tool_count": 31,
+        "tools_list_bytes": 57119,
+        "tool_count": 32,
         "requests": 7,
         "input_bytes": 1783,
         "output_bytes": 34591,
@@ -420,8 +420,8 @@
       "capability": "reference_library",
       "bootstrap": "empty",
       "summary": {
-        "tools_list_bytes": 56330,
-        "tool_count": 31,
+        "tools_list_bytes": 57119,
+        "tool_count": 32,
         "requests": 5,
         "input_bytes": 1382,
         "output_bytes": 30442,
@@ -494,8 +494,8 @@
       "capability": "script",
       "bootstrap": "ready",
       "summary": {
-        "tools_list_bytes": 56330,
-        "tool_count": 31,
+        "tools_list_bytes": 57119,
+        "tool_count": 32,
         "requests": 5,
         "input_bytes": 1662,
         "output_bytes": 79129,

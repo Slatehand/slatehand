@@ -25,7 +25,7 @@ handler 协调，回到同一 Store 与 Generation 规则。Web 按钮与 Agent 
 
 `location.apply_operations` 是人类与 Agent 共用的地点编辑入口：地点、陈设、状态和独立图片的增改删、`bind_scene` 与
 `clear_image_selection`；scope 声明 `location_ids`、`scene_ids`，同一 patch 新建项用局部 `key` 互相引用，回执 data 返回
-`created_ids`。Shot/Keyframe 不绑定地点图片。候选选择 `location.select_image` 只开放给人类，不在 Agent 操作白名单。
+`created_ids`。Shot/Keyframe 不绑定地点图片。候选选择 `location.select_image` 由人类与 Agent 共用（MCP `select_location_image`），在 Agent 操作白名单内。
 
 `reference.apply_operations` 是 Agent 与人类共用的引用库编辑入口：角色卡与造型的增删改、造型图与参考音色的选定或取消、
 旁白身份修改；同一 patch 新建的角色卡与造型用局部 `key` 互引，回执 data 返回 `created_ids`。脚本仍有 Shot 可见角色或对白

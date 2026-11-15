@@ -157,6 +157,11 @@ CASES = [
         {"dialogue_line_id": TARGET, "generation_id": "b" * 32},
         "dialogue.select_candidate",
     ),
+    (
+        "select_location_image",
+        {"image_id": TARGET, "asset_id": "b" * 32},
+        "location.select_image",
+    ),
 ]
 
 

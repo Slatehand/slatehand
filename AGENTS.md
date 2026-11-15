@@ -94,7 +94,7 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
 - 地点库（`location_library`）保存跨 Scene 共享的固定空间：Core 分配稳定 ID 的地点、固定陈设与主光、状态变体和彼此独立的图片。
   图片没有主图/视图层级，`kind=image|panorama`；每张图片必须由用户或 Agent 填写与生成提示词分离的实际内容纯文本说明。
   普通图跟随项目画幅，全景图固定 2:1。全景图是唯一特殊类别：点击后进入 3D 预览，用户调整 yaw/pitch/hfov 并显式创建普通子图；
-  `PANO_VIEW` 产物直接选给子图，冻结来源只作 provenance，不形成活依赖。所有普通生成候选只有人类可以选择。
+  `PANO_VIEW` 产物直接选给子图，冻结来源只作 provenance，不形成活依赖。普通生成候选由人类或 Agent 经同一 `location.select_image` 采用，任一方随时可改选。
 - 同一空间的昼夜、天气、布置或破坏变化建为状态，不建新地点。只有 Scene 绑定 `location_id` 与可选 `state_id`；Shot 与 Keyframe
   不保存地点绑定（Keyframe 只可显式参考地点图片条目作为生图输入）。地点、状态、图片或 Scene 绑定变化不级联失效 Keyframe、视频、超分与装配；删除图片保留历史
   Asset/Generation 与已取景子图。Scene 仍绑定地点时拒绝删除；被 Scene 引用的状态仍拒绝删除；相关进行中或不确定任务阻止冲突修改。
@@ -180,9 +180,9 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
   Agent 不能跨域复制 Asset。
 - 本机用户启动的外部 Agent 获得当前项目、有限期的 `project.execute` 委托，仅可调用既有 Agent 操作白名单。
   启动不发送任务，询问下一步只读取；具体执行等待用户指令，由外部 Agent 判断意图。Core 校验操作/状态/范围/版本，
-  不以 Agent 自报正文授予能力，除 Keyframe 候选、对白 WAV 候选、Segment 其他图片选图与引用库造型图/参考音色外不开放候选选择，也不开放 Approval、人类操作或直接项目文件写入。其它部署默认仍使用精确 grant。
+  不以 Agent 自报正文授予能力，除 Keyframe 候选、对白 WAV 候选、Segment 其他图片选图、地点图片与引用库造型图/参考音色外不开放候选选择，也不开放 Approval、人类操作或直接项目文件写入。其它部署默认仍使用精确 grant。
 
-- Agent 只能提交类型化 proposal 与白名单命令；不能直接写项目文件、选择 Keyframe、对白 WAV、Segment 其他图片、造型图与参考音色以外的候选、批准、发布或调用 Provider。
+- Agent 只能提交类型化 proposal 与白名单命令；不能直接写项目文件、选择 Keyframe、对白 WAV、Segment 其他图片、地点图片、造型图与参考音色以外的候选、批准、发布或调用 Provider。
   Keyframe 由 Agent 或人类经同一字段选定本帧候选、另一 Keyframe 已选图（原样复用）或任一项目图片；Segment 其他图片由 Agent 或人类经同一 `video.select_reference_image`
   选入任一项目图片（生成候选、关键帧已选图或资产库图片）。任一方随时可改选，便于自动化连贯生产。
 - Web 只消费服务端资源、状态、影响预览和 `allowed_actions`；不得复制状态机或猜测下一步。

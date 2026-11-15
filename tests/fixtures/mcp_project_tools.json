@@ -1409,7 +1409,7 @@
     "name": "edit_keyframes"
   },
   {
-    "description": "编辑地点语义、独立图片条目与可选Scene关系；新建项以key互引，不能选候选。",
+    "description": "编辑地点语义、独立图片条目与可选Scene关系；新建项以key互引；采用图片候选用 select_location_image。",
     "inputSchema": {
       "$defs": {
         "CaptureSource": {
@@ -3254,6 +3254,44 @@
       "type": "object"
     },
     "name": "select_reference_image"
+  },
+  {
+    "description": "为一张地点图片条目采用图片，成为 Keyframe 可参考的地点图：该条目成功未隐藏的 location_image / panorama_capture 候选产物，或任一项目图片 Asset；全景条目须是 2:1 等距柱状全景；选前用 read_media_input 看图；人类可随时改选。",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "expected_revision": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "image_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "project_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "idempotency_key",
+        "image_id",
+        "asset_id"
+      ],
+      "type": "object"
+    },
+    "name": "select_location_image"
   },
   {
     "description": "设置单Segment视频模式，不生成。",

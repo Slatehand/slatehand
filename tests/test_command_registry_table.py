@@ -65,8 +65,8 @@ def test_external_and_domain_commands_share_one_registry_table():
         assert _COMMAND_SPECS[name].scope_rule
 
 
-def test_location_candidate_selection_is_human_only():
+def test_location_candidate_selection_is_open_to_agent():
     from core.application.caller import _AGENT_OPERATIONS
 
     assert "location.apply_operations" in _AGENT_OPERATIONS
-    assert "location.select_image" not in _AGENT_OPERATIONS
+    assert "location.select_image" in _AGENT_OPERATIONS

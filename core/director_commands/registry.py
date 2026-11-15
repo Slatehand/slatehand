@@ -493,7 +493,7 @@ _COMMAND_SPECS: dict[str, _CommandSpec] = {
     ),
     "location.apply_operations": _CommandSpec(None, _execute_location_operations),
     "reference.apply_operations": _CommandSpec(None, _execute_reference_operations),
-    # 地点图片选择只开放给人类：不在 Agent 操作白名单（core.application.caller）。
+    # 地点图片选择由人类与 Agent 共用（MCP select_location_image）。
     "location.select_image": _CommandSpec(
         _parse(parse_location_image_selection), "select_location_image"
     ),

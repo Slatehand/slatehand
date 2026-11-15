@@ -56,7 +56,7 @@
 | `update_image` | `image_id`、`fields` 中出现的上述图片字段 |
 | `delete_image` | `image_id`；保留历史 Asset 与 Generation，已生成的全景子图不随之删除 |
 | `bind_scene` | `scene_id`、`location_id`（null 解除）、`state_id` |
-| `clear_image_selection` | `image_id`；Agent 可清除选择，不能采用候选 |
+| `clear_image_selection` | `image_id`；清除当前选择 |
 
 `reference_asset_ids` 最多 5 张。`source` 只允许普通图片使用，形状为
-`{panorama_image_id,yaw_deg,pitch_deg,hfov_deg}`。人类采用候选使用独立的 `location.select_image` 入口。
+`{panorama_image_id,yaw_deg,pitch_deg,hfov_deg}`。采用候选使用独立的 `location.select_image` 入口（MCP `select_location_image`），人类与 Agent 共用。
