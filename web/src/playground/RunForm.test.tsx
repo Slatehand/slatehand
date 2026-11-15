@@ -230,6 +230,32 @@ it("Ref2VA 预览标签映射，说明为空时禁用提交", async () => {
   expect(screen.getByRole("button", { name: "提交" })).toBeDisabled();
 });
 
+it("轮询带回内容相同的新 capabilities 时，标签映射预览不闪回空态", async () => {
+  const preview = vi.mocked(playgroundApi.previewRecipeInputs);
+  const props = {
+    assets: FIXTURE_ASSETS,
+    selectedCapability: "sample_video.ref2va" as PlaygroundCapabilityId,
+    onSubmitted: vi.fn(),
+    onRequestAsset: (request: { onPick: (id: string) => void }) =>
+      request.onPick(imageAsset.id),
+  };
+  const { rerender } = render(
+    <RunForm capabilities={CAPABILITIES} {...props} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "从资产选择（首帧）" }));
+  await waitFor(() =>
+    expect(screen.getByText("<Picture 2>")).toBeInTheDocument(),
+  );
+  const calls = preview.mock.calls.length;
+
+  rerender(<RunForm capabilities={structuredClone(CAPABILITIES)} {...props} />);
+
+  expect(screen.getByText("<Picture 2>")).toBeInTheDocument();
+  expect(screen.queryByText("还没有选择素材。")).not.toBeInTheDocument();
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  expect(preview.mock.calls.length).toBe(calls);
+});
+
 it("时长不设上限，只拒绝短于 0.2 秒", () => {
   render(<Harness initialCapability="sample_video.fl2va" />);
   fireEvent.change(screen.getByRole("textbox", { name: "视频提示词" }), {

@@ -122,10 +122,14 @@ export function RunForm({
           ? recipeDefaults(recipe)
           : defaultParameters(selectedCapability)));
 
-  const previewKey = JSON.stringify([selectedCapability, values]);
+  // 轮询每次都会带回新的 recipe 对象；依赖内容而不是引用，且请求返回前保留旧预览，
+  // 否则标签映射区会在“还没有选择素材”和列表之间反复切换，整页跟着跳动。
+  const previewKey = JSON.stringify([selectedCapability, recipe ?? null, values]);
   useEffect(() => {
-    setPreview(null);
-    if (!recipe || selectedCapability === null || values === null) return;
+    if (!recipe || selectedCapability === null || values === null) {
+      setPreview(null);
+      return;
+    }
     let stale = false;
     const timer = setTimeout(() => {
       void playgroundApi
@@ -144,7 +148,8 @@ export function RunForm({
       stale = true;
       clearTimeout(timer);
     };
-  }, [previewKey, recipe, selectedCapability]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- previewKey 已覆盖 recipe 与 values 的内容
+  }, [previewKey]);
 
   useImperativeHandle(
     ref,
