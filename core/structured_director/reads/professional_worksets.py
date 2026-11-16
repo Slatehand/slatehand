@@ -20,7 +20,11 @@ from ..planning_inputs import (
     narration_inputs,
     reference_characters,
 )
-from ..prompt_worksets import image_prompt_guide, video_prompt_workset
+from ..prompt_worksets import (
+    image_prompt_guide,
+    keyframe_prompt_problems,
+    video_prompt_workset,
+)
 from ..script_index import scene_segments
 from .common import _exact_arguments, _ids, _json_value
 from .semantic_projection import build_semantic_projection, build_semantic_tree
@@ -75,7 +79,7 @@ def _validate_if_hash(value: object) -> str | None:
     return value
 
 
-def _saved_keyframe_plan(document, scene_ids):
+def _saved_keyframe_plan(document, scene_ids, *, provider_catalog=None):
     plan = document.keyframe_plan
     if plan is None:
         return {
@@ -123,6 +127,9 @@ def _saved_keyframe_plan(document, scene_ids):
                 "owner_segment_id": item.owner_segment_id,
                 "predecessor_keyframe_id": item.predecessor_keyframe_id,
                 "prompt_text": item.prompt_text,
+                "prompt_problems": keyframe_prompt_problems(
+                    document, item, provider_catalog=provider_catalog
+                ),
                 "visible_character_ids": list(item.visible_character_ids),
                 "character_references": serialize_character_references(item),
                 "reference_keyframe_ids": list(item.reference_keyframe_ids),
@@ -395,7 +402,9 @@ def workset_read(
                 "target_segment_ids": list(segments),
                 "required_shared_boundaries": _json_value(boundaries),
                 "aspect_ratio": document.aspect_ratio.value,
-                "saved_keyframe_plan": _saved_keyframe_plan(document, scene_ids),
+                "saved_keyframe_plan": _saved_keyframe_plan(
+                    document, scene_ids, provider_catalog=provider_catalog
+                ),
                 "location_library": _keyframe_location_library(document, scenes),
                 "location_images": _keyframe_location_images(document),
                 "image_prompt": image_prompt_guide(provider_catalog, skill_text=False),

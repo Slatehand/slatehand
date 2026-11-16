@@ -242,13 +242,13 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 
 媒体、时序与资产：
 
-- `keyframe_requests.py`：Keyframe 生图的角色造型、前置帧、手工辅助图实际输入映射与提交预览。
+- `keyframe_requests.py`：Keyframe 生图的角色造型、前置帧、手工辅助图实际输入映射、提交预览与当前图片插件的提示词软提示。
 - `reference_image_requests.py`：Segment 无时间位置参考图片的角色造型、显式生图输入与提示词编译。
 - `reference_image_mutations.py`：参考图片规划及人类选图，保持 recipe 输入簿为唯一选图绑定来源。
 - `character_look_requests.py`：造型设定图的身份参考校验、固定版式与提示词编译（固定 2:1，按插件约定写画幅与 4K）。
 - `location_requests.py`：独立地点图片生成与全景取景的前置检查、输入映射、名额、提示词编译及批次分类。
 - `image_inputs.py`：单次图片调用的输入名额（`MAX_IMAGE_INPUTS`）、优先级去重与超额拒绝；Keyframe 与地点生成共用。
-- `image_prompt_style.py`：当前图片插件的输入图指代与画幅句约定。
+- `image_prompt_style.py`：当前图片插件的输入图指代、画幅句约定与提示词软检查调用。
 - `video_contracts.py`：抽帧请求（帧号）与视频输入快照值对象。
 - `video_inputs.py`：Segment 视频实际输入、显式对白音频引用草稿与生成门禁、提示词校验所需的领域事实、候选适用性与首帧“从上一 seg 抽取”来源。
 - `media_submission/dialogue.py`：逐句对白 TTS 提交；有参考音色强制克隆，无参考音色强制 Voice Design。

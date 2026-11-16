@@ -5,24 +5,28 @@ from ..models import LocationImageKind
 from ..script_index import scene_segments
 from ..video_inputs import start_frame_extraction_source
 from .common import _exact_arguments, _ids, _json_value
-from .professional_worksets import _AGENT_PAGE_BYTES, _agent_page
+from .professional_worksets import (
+    _AGENT_PAGE_BYTES,
+    _agent_page,
+    keyframe_prompt_problems,
+)
 
 DETAIL_KINDS = ("keyframe", "location", "location_image", "character", "director_plan")
 _MAX_IDS = 20
 
 
-def details_page_read(document, arguments):
+def details_page_read(document, arguments, *, provider_catalog=None):
     """详情超过单次上限时（例如长导演方案）与专业工作集同样按 UTF-8 chunk 分页。"""
     query = {key: value for key, value in arguments.items() if key != "cursor"}
     return _agent_page(
-        details_read(document, query),
+        details_read(document, query, provider_catalog=provider_catalog),
         query={"project_id": document.project_id, **query},
         cursor=arguments.get("cursor"),
         page_bytes=_AGENT_PAGE_BYTES,
     )
 
 
-def details_read(document, arguments):
+def details_read(document, arguments, *, provider_catalog=None):
     _exact_arguments(arguments, required={"kind"}, optional={"ids"})
     kind = arguments["kind"]
     if not isinstance(kind, str) or kind not in DETAIL_KINDS:
@@ -38,7 +42,11 @@ def details_read(document, arguments):
     ids = _ids(arguments["ids"], "ids")
     if not 1 <= len(ids) <= _MAX_IDS:
         raise ValueError(f"ids 必须包含 1 到 {_MAX_IDS} 个 ID。")
-    available = _KINDS[kind](document)
+    available = (
+        _keyframes(document, ids=set(ids), provider_catalog=provider_catalog)
+        if kind == "keyframe"
+        else _KINDS[kind](document)
+    )
     return _result(
         document,
         kind,
@@ -59,7 +67,7 @@ def _result(document, kind, ids, items, missing_ids):
     }
 
 
-def _keyframes(document):
+def _keyframes(document, *, ids=None, provider_catalog=None):
     plan = document.keyframe_plan
     script = document.director_script
     if plan is None or script is None:
@@ -87,6 +95,9 @@ def _keyframes(document):
             "keyframe_id": item.id,
             "bindings": bindings.get(item.id, []),
             "prompt_text": item.prompt_text,
+            "prompt_problems": keyframe_prompt_problems(
+                document, item, provider_catalog=provider_catalog
+            ),
             "visible_character_ids": list(item.visible_character_ids),
             "character_references": serialize_character_references(item),
             "predecessor_keyframe_id": item.predecessor_keyframe_id,
@@ -98,6 +109,7 @@ def _keyframes(document):
             "start_frame_extraction": _start_frame_extraction(document, item.id),
         }
         for item in plan.keyframes
+        if ids is None or item.id in ids
     }
 
 

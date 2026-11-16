@@ -6,7 +6,12 @@ from dataclasses import dataclass, replace
 from core.director_proposals.keyframe_codec import normalize_keyframe_prompt_text
 
 from .image_inputs import ImageInput, ImageInputs, ordered_image_inputs
-from .image_prompt_style import DEFAULT_IMAGE_PROMPT_STYLE, ImagePromptStyle
+from .image_prompt_style import (
+    DEFAULT_IMAGE_PROMPT_STYLE,
+    ImagePromptStyle,
+    image_prompt_style,
+    lint_image_prompt,
+)
 from .models import (
     Asset,
     CharacterCard,
@@ -465,4 +470,40 @@ def _keyframe_prompt_context_json(document: StructuredDirectorDocument, keyframe
         },
         ensure_ascii=False,
         indent=2,
+    )
+
+
+def keyframe_prompt_problems(
+    document: StructuredDirectorDocument, keyframe: Keyframe, provider_catalog=None
+) -> list[str]:
+    """按当前绑定图片插件返回 Keyframe 正文的软提示；未激活或前置未就绪时仍做纯文本检查。"""
+    if provider_catalog is None or not keyframe.prompt_text.strip():
+        return []
+    try:
+        inputs = _keyframe_generation_inputs(document, keyframe.id)
+    except ValueError:
+        inputs = None
+    if inputs is None:
+        plan = document.keyframe_plan
+        binding = next(
+            (
+                item
+                for item in (() if plan is None else plan.segments)
+                if item.segment_id == keyframe.owner_segment_id
+            ),
+            None,
+        )
+        fallback = (
+            GenerationOperation.EDIT
+            if keyframe.predecessor_keyframe_id is not None
+            and binding is not None
+            and binding.start_enabled
+            else GenerationOperation.GENERATE
+        )
+        return lint_image_prompt(
+            provider_catalog, fallback, keyframe.prompt_text, inputs_ready=False
+        )
+    style = image_prompt_style(provider_catalog, inputs.operation)
+    return lint_image_prompt(
+        provider_catalog, inputs.operation, keyframe.prompt_text, inputs.describe(style)
     )

@@ -218,7 +218,7 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
     Scene 给出可选 `location_id` / `state_id`，proposal 写 `segments[]`，每个 Segment 给 `frame_strategy=none|start|end|both`、启用端点计划与可选 `reference_images` 规划，以及
     `continues_from_previous`。每个可见角色的造型条目给出 `look_id`、名称、使用场合、已选造型图 `selected_asset_id` 和派生的
     `has_image`，Agent 可将该 Asset ID 直接交给 `read_media_input` 查看受控原图。
-    已建立关键帧的实际 `image_inputs` 给出 `asset_id`、`label`、`roles`；这些只表示实际输入，不代表图片内容或使用意图，输入变更后重新读取映射。
+    已建立关键帧的实际 `image_inputs` 给出 `asset_id`、`label`、`roles`；这些只表示实际输入，不代表图片内容或使用意图，输入变更后重新读取映射。关键帧工作集、`saved_keyframe_plan.keyframes`、`read_details(kind="keyframe")` 与 `reference_image_plans` 还会附带当前图片插件 `prompt_linter` 给出的 `prompt_problems` 软提示（不进入依赖阻塞，也不拒绝生成）。
   - 地点工作集给出完整导演方案、画幅、每个 Scene 的标题/梗概/设定与当前地点/状态，全部 Shot 的构图、运镜、动作与可见角色，
     以及完整地点库（每张独立图片带 kind、强制说明、生成计划、参考图与选图状态）和图片插件的
     `image_prompt` 约定。request 回执内嵌的冻结工作集不带 `image_prompt`，以 `read_professional_workset` 为准。

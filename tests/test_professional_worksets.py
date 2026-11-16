@@ -577,3 +577,163 @@ def test_script_workset_carries_current_video_plugin_packing_limits(tmp_path):
         "dialogue_audio_maximum": 3,
         "soft_duration_limit_seconds": 15,
     }
+
+
+def test_image_prompt_problems_surface_soft_hints_without_blocking_generation(tmp_path):
+    import sample_plugins
+    from provider_factory import ProviderRegistry, sample_plugin
+    from structured_director_fixtures import RecordingProvider
+
+    from core.model_providers.manifest import Capability
+    from core.structured_director import StructuredDirectorService
+
+    async def run():
+        store, _default_service, doc, _ = await _location_project(str(tmp_path))
+        image = RecordingProvider(media_type="image/png", content=b"\x89PNG\r\n\x1a\nok")
+        video = RecordingProvider(media_type="video/mp4", content=b"fake-mp4")
+        seen_facts: list[dict] = []
+
+        def lint(recipe_id: str, prompt: str, facts: dict) -> list[str]:
+            seen_facts.append({"recipe_id": recipe_id, **facts})
+            return ["避免括号否定补丁"] if "绝无扭曲" in prompt else []
+
+        registry = ProviderRegistry()
+        registry.install(
+            sample_plugin(
+                sample_plugins.IMAGE,
+                {"sample_image.generate": image, "sample_image.edit": image},
+                prompt_linter=lint,
+            )
+        )
+        registry.install(
+            sample_plugin(
+                sample_plugins.VIDEO,
+                {"sample_video.fl2va": video, "sample_video.ref2va": video},
+            )
+        )
+        registry.bind(Capability.IMAGE_GENERATE, sample_plugins.IMAGE.plugin_id)
+        registry.bind(Capability.IMAGE_EDIT, sample_plugins.IMAGE.plugin_id)
+        registry.bind(Capability.VIDEO_GENERATE, sample_plugins.VIDEO.plugin_id)
+        service = StructuredDirectorService(store, registry=registry)
+
+        doc = await service.unlock_visual_production(expected_revision=doc.revision)
+        scene = doc.director_script.scenes[0]
+        segment = scene.segments[0]
+        binding = next(item for item in doc.keyframe_plan.segments if item.segment_id == segment.id)
+        frame_id = binding.start_keyframe_id
+
+        CommandRegistry = DirectorCommandRegistry(store)
+        flagged_prompt = "平视中近景，人物静立门前（绝无扭曲）。"
+        doc = CommandRegistry.execute(
+            DirectorCommand(
+                "keyframe.apply_operations",
+                doc.revision,
+                "linted-keyframe-fields",
+                {
+                    "operations": [
+                        {
+                            "op": "set_activation",
+                            "segment_id": segment.id,
+                            "start_enabled": True,
+                            "end_enabled": False,
+                        },
+                        {
+                            "op": "update_frame_fields",
+                            "keyframe_id": frame_id,
+                            "fields": {
+                                "prompt_text": flagged_prompt,
+                                "visible_character_ids": [],
+                            },
+                        },
+                    ]
+                },
+            )
+        ).document
+        doc = CommandRegistry.execute(
+            DirectorCommand(
+                "video.save_reference_image_plan",
+                doc.revision,
+                "linted-ref-image",
+                {
+                    "scope": {"scene_ids": [scene.id]},
+                    "segment_id": segment.id,
+                    "slot_index": 0,
+                    "prompt_text": "木案上的青铜令牌特写（绝无扭曲）。",
+                    "description": "道具特写参考。",
+                    "visible_character_ids": [],
+                    "character_references": [],
+                    "reference_asset_ids": [],
+                },
+            )
+        ).document
+
+        slots = keyframe_workset(doc, segment.id, provider_catalog=registry)
+        assert slots[0]["prompt_problems"] == ["避免括号否定补丁"]
+
+        workset = execute_project_read(
+            doc,
+            "project.get_workset",
+            {"capability": "keyframe", "scope": {"scene_ids": [scene.id]}},
+            provider_recipes=registry.recipe_views(),
+            provider_catalog=registry,
+        )["core_facts"]
+        saved_frame = next(
+            item for item in workset["saved_keyframe_plan"]["keyframes"] if item["id"] == frame_id
+        )
+        assert saved_frame["prompt_problems"] == ["避免括号否定补丁"]
+        ref_plan = workset["video_inputs"][0]["reference_image_plans"][0]
+        assert ref_plan["prompt_problems"] == ["避免括号否定补丁"]
+
+        seen_facts.clear()
+        details = execute_project_read(
+            doc,
+            "project.get_details",
+            {"kind": "keyframe", "ids": [frame_id]},
+            provider_catalog=registry,
+        )
+        assert details["items"][0]["prompt_problems"] == ["避免括号否定补丁"]
+        assert len(seen_facts) == 1  # 只检查请求的帧，不扫描并检查整部作品。
+
+        # 软提示绝不阻止实际生图提交，也不改写已保存正文。
+        doc = await service.generate_keyframe(keyframe_id=frame_id, expected_revision=doc.revision)
+        assert len(image.requests) == 1
+        assert flagged_prompt in str(image.requests[0].param("prompt"))
+        assert doc.generations[-1].target_id == frame_id
+
+        # 首帧关闭时，尾帧即使保存 predecessor，也属于生图而非改图。
+        # 其它参考帧未选定时仍可检查文本，不能把缺失依赖当成实际空输入。
+        from core.structured_director.keyframe_requests import keyframe_prompt_problems
+
+        end_id = binding.end_keyframe_id
+        other_id = next(
+            frame.id for frame in doc.keyframe_plan.keyframes if frame.id not in {frame_id, end_id}
+        )
+        unready_plan = replace(
+            doc.keyframe_plan,
+            segments=tuple(
+                replace(item, start_enabled=False, end_enabled=True)
+                if item.segment_id == segment.id
+                else item
+                for item in doc.keyframe_plan.segments
+            ),
+            keyframes=tuple(
+                replace(frame, prompt_text=flagged_prompt, reference_keyframe_ids=(other_id,))
+                if frame.id == end_id
+                else frame
+                for frame in doc.keyframe_plan.keyframes
+            ),
+        )
+        unready_doc = replace(doc, keyframe_plan=unready_plan)
+        end_frame = next(frame for frame in unready_plan.keyframes if frame.id == end_id)
+        seen_facts.clear()
+        assert keyframe_prompt_problems(unready_doc, end_frame, registry) == ["避免括号否定补丁"]
+        assert seen_facts == [
+            {
+                "recipe_id": "sample_image.generate",
+                "operation": "generate",
+                "asset_labels": [],
+                "inputs_ready": False,
+            }
+        ]
+
+    asyncio.run(run())

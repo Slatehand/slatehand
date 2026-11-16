@@ -69,7 +69,9 @@ def execute_project_read(
             current, args, provider_recipes=provider_recipes, provider_catalog=provider_catalog
         ),
         "project.locate_story": _locate_story,
-        "project.get_details": details_page_read,
+        "project.get_details": lambda current, args: details_page_read(
+            current, args, provider_catalog=provider_catalog
+        ),
         "project.get_outline": _get_outline,
         "project.get_entities": _get_entities,
         "project.get_scene": _get_scene,

@@ -35,7 +35,7 @@ Core 仍校验状态、目标、revision 和请求归属。遇到 403 应报告�
 
 主流程只以 read_workflow 返回的 workflow 为准。allowed_actions 是人类界面技术能力，
 不是下一步列表。用户要求「推进」时只解析 required_next_actions；recommended_next_actions 是不阻塞主流程的
-可选建议（如规划地点、成套生成地点参考图），先向用户提议，收到明确指令再执行。角色与声音引用提交后等待人类确认，地点规划不能替代这一步。每次写入后重读主流程；
+可选建议（如规划地点、成套生成地点参考图），先向用户提议，收到明确指令再执行。角色与声音引用提交后等待人类确认，地点规划不能替代这一步。写命令回执已附最新 revision 与紧凑 workflow，常规连续写入直接沿用回执推进，不必每次写入后再调 read_workflow 或重读未变工作集；仅在会话起点、跨阶段交接或恢复中断状态时调用 read_workflow；
 局部生成建议不能覆盖主流程阻塞。required_next_actions 每项都是结构化动作：使用 action/tool/tool_action、
 target_ids 和 generation_ids 等字段，不解析旧字符串建议。human_only=true 时只向用户说明同项 web_path，
 不能代替用户执行。workset 的 not_current_stage 只表示当前主流程相关性，不会重新锁住已经累计解锁的能力；

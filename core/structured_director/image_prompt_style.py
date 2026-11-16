@@ -54,3 +54,27 @@ def image_prompt_style(catalog, operation: GenerationOperation) -> ImagePromptSt
         return DEFAULT_IMAGE_PROMPT_STYLE
     plugin, recipe = found
     return ImagePromptStyle(plugin.manifest, recipe.id)
+
+
+def lint_image_prompt(
+    catalog,
+    operation: GenerationOperation,
+    prompt_text: str,
+    image_inputs: list[dict] | tuple[dict, ...] = (),
+    *,
+    inputs_ready: bool = True,
+) -> list[str]:
+    """当前绑定图片插件的提示词格式软提示；不进入依赖原因，也不阻止生成。"""
+    if catalog is None or not prompt_text.strip():
+        return []
+    capability = image_capability(operation)
+    found = catalog.recipe_for(capability)
+    if found is None:
+        return []
+    _plugin, recipe = found
+    facts = {
+        "operation": operation.value,
+        "asset_labels": [item["label"] for item in image_inputs if item.get("label")],
+        "inputs_ready": inputs_ready,
+    }
+    return catalog.lint_prompt(capability, recipe.id, prompt_text, facts)

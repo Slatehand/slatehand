@@ -6,11 +6,15 @@ from core.model_providers.manifest import Capability, Role, recipe_from_json
 from core.model_providers.recipe import explicit_slots
 
 from .dialogue_timing import actual_dialogue_timing
-from .image_prompt_style import image_prompt_style
+from .image_prompt_style import image_prompt_style, lint_image_prompt
 from .keyframe_requests import (
+    _find_keyframe,
     _keyframe_generation_inputs,
     _keyframe_prompt_context_json,
     _keyframe_reference_prompt,
+)
+from .keyframe_requests import (
+    keyframe_prompt_problems as keyframe_prompt_problems,
 )
 from .models import StructuredDirectorDocument
 from .reads.video_recipes import keyframe_video_context
@@ -276,10 +280,12 @@ def keyframe_workset(
     ]:
         if not enabled:
             continue
+        keyframe = _find_keyframe(document, frame_id)
         inputs = _keyframe_generation_inputs(document, frame_id)
         if inputs is None:
             raise ValueError("前置Keyframe候选尚未完成，不能提供可执行Prompt输入。")
         style = image_prompt_style(provider_catalog, inputs.operation)
+        described = inputs.describe(style)
         result.append(
             {
                 "workset_version": 1,
@@ -289,7 +295,10 @@ def keyframe_workset(
                 "aspect_ratio": document.aspect_ratio.value,
                 "operation": inputs.operation.value,
                 "reference_mapping": _keyframe_reference_prompt(inputs, style),
-                "image_inputs": inputs.describe(style),
+                "image_inputs": described,
+                "prompt_problems": lint_image_prompt(
+                    provider_catalog, inputs.operation, keyframe.prompt_text, described
+                ),
             }
         )
     return result

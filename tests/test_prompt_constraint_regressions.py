@@ -379,3 +379,26 @@ def test_video_and_keyframe_contracts_prioritize_ref2va_and_proactive_character_
         "规划阶段不能自动切换 recipe",
     ):
         assert stale not in combined, stale
+
+
+def test_launcher_avoids_blanket_workflow_rereads_and_image_skills_forbid_patch_stacking():
+    """写回执已附 revision 与 workflow，不要求每次写入后重读；图片重试禁止叠括号否定补丁。"""
+    launcher = (
+        Path(__file__).resolve().parents[1] / "integrations/agent_launcher/PROMPT.md"
+    ).read_text()
+    assert "每次写入后重读主流程" not in launcher
+    assert "写命令回执已附最新 revision 与紧凑 workflow" in launcher
+
+    resources = {r["name"]: r["text"] for r in read_contract("keyframe")["resources"]}
+    sequence = resources["production/slatehand-keyframe-sequence/SKILL.md"]
+    assert "禁止叠否定补丁治标" in sequence
+    assert "同一轮并发提交并集中 `wait`" in sequence
+    assert "prompt_problems" in sequence
+
+    image_skill = next(
+        text
+        for name, text in resources.items()
+        if name.startswith("global/slatehand-image-prompt-writing/")
+    )
+    assert "正交剥离" in image_skill
+    assert "prompt_problems" in image_skill
