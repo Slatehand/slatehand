@@ -39,7 +39,7 @@ adapter 解析为对象后仍走同一 Core proposal 命令、revision CAS 和�
 `voice` 翻译为 `reference.design_voice`（`target_id` 为角色卡或旁白身份 ID，旁白须给 `language`）；
 `reference_image` 翻译为 `video.generate_reference_image`（`target_id` 为图片规划 ID）；`frame_extraction` 翻译为
 `keyframe.extract_frame`（`target_id` 为首帧 Keyframe ID，`frame_index` 只属于该 kind，省略时不发送、由 Core 取倒数第 5 帧）；`save_reference_image_plan`
-以 Scene scope、Segment ID 和 0–3 槽位保存一张任意内容的其他图片规划，完整字段在 tools/list 下发，不生成、不选择。
+以 Scene scope、Segment ID 和 0–8 槽位保存一张任意内容的其他图片规划，完整字段在 tools/list 下发，不生成、不选择。
 `read_story` 的 Segment `selection` / `keyframe` / `video_prompt` 扩展返回 `video_inputs`；其中 `video_prompt` 扩展不重复 `video_inputs`、
 不内联 `bindable_assets`（绑定素材时读视频专业工作集），`keyframe` / `video_prompt` 生产前置未满足时返回 `{available: false, reason}`
 而不让整次读取失败。Keyframe 与视频专业工作集也给出

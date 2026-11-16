@@ -3237,7 +3237,7 @@
           "type": "string"
         },
         "slot_index": {
-          "maximum": 3,
+          "maximum": 8,
           "minimum": 0,
           "type": "integer"
         },
@@ -3421,7 +3421,7 @@
     "name": "set_dialogue_timing"
   },
   {
-    "description": "新建或编辑一个 Segment 的其他图片规划，slot_index 为 0–3；可规划任意画面内容，不限角色或地点，无时间位置；不生成、不选择。用 read_story 的 selection/keyframe 扩展读取 video_inputs 中的规划 ID 和实际绑定。",
+    "description": "新建或编辑一个 Segment 的其他图片规划，slot_index 为 0–8；可规划任意画面内容，不限角色或地点，无时间位置；不生成、不选择。用 read_story 的 selection/keyframe 扩展读取 video_inputs 中的规划 ID 和实际绑定。",
     "inputSchema": {
       "$defs": {
         "CharacterReference": {
@@ -3505,7 +3505,7 @@
           "type": "string"
         },
         "slot_index": {
-          "maximum": 3,
+          "maximum": 8,
           "minimum": 0,
           "type": "integer"
         },

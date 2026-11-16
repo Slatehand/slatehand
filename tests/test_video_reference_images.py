@@ -72,7 +72,7 @@ def test_agent_can_discover_plan_and_generate_arbitrary_other_image_through_mcp(
                 description="几何示意图，用于视觉风格参考。",
             )
             before = store.path.read_bytes()
-            for invalid in ({"slot_index": 4}, {"asset_id": "f" * 32}, {"scene_ids": ["f" * 32]}):
+            for invalid in ({"slot_index": 9}, {"asset_id": "f" * 32}, {"scene_ids": ["f" * 32]}):
                 rejected = await client.call_tool("save_reference_image_plan", {**args, **invalid})
                 assert rejected.is_error
                 assert store.path.read_bytes() == before
@@ -198,12 +198,12 @@ def test_reference_image_planning_preserves_schema_and_video_bindings(tmp_path):
         store, service, doc, _ = await fixture(tmp_path)
         before_bindings = doc.video_plan.segments[0].recipes
         command = DirectorCommand(
-            "video.save_reference_image_plan", doc.revision, "ref-plan", image_update(doc, 3)
+            "video.save_reference_image_plan", doc.revision, "ref-plan", image_update(doc, 8)
         )
         result = await service.execute_director_command(command)
         doc = result.document
         image = doc.video_plan.segments[0].reference_images[0]
-        assert image.slot_index == 3
+        assert image.slot_index == 8
         assert doc.video_plan.segments[0].recipes == before_bindings
         reread = store.read()
         assert reread.video_plan.segments[0].reference_images == (image,)
@@ -276,7 +276,7 @@ def test_reference_image_generation_is_candidate_only_and_selection_binds_same_s
                     "video.save_reference_image_plan",
                     doc.revision,
                     "plan-image",
-                    image_update(doc, 3),
+                    image_update(doc, 8),
                 )
             )
         ).document
@@ -307,7 +307,7 @@ def test_reference_image_generation_is_candidate_only_and_selection_binds_same_s
         asset_id = doc.generations[-1].output_asset_id
         args = {
             key: value
-            for key, value in image_update(doc, 3).items()
+            for key, value in image_update(doc, 8).items()
             if key in {"scope", "segment_id", "slot_index", "description"}
         }
         args["asset_id"] = asset_id
@@ -397,7 +397,7 @@ def test_reference_image_rejects_unknown_fields_and_out_of_scope(tmp_path):
         before = store.path.read_bytes()
         for args in (
             {**image_update(doc), "unknown": True},
-            {**image_update(doc), "slot_index": 4},
+            {**image_update(doc), "slot_index": 9},
             {**image_update(doc), "scope": {"scene_ids": []}},
         ):
             with pytest.raises(ValueError):
@@ -427,7 +427,13 @@ def test_keyframe_proposal_adds_reference_plan_atomically_without_changing_bindi
         payload = proposal_for(doc, "keyframe")
         image = image_update(doc)
         payload["segments"][0]["reference_images"] = [
-            {key: value for key, value in image.items() if key not in {"scope", "segment_id"}}
+            {
+                **{
+                    key: value for key, value in image.items() if key not in {"scope", "segment_id"}
+                },
+                "slot_index": index,
+            }
+            for index in range(9)
         ]
         submit = DirectorCommand(
             "keyframe.submit_proposal",
@@ -443,6 +449,9 @@ def test_keyframe_proposal_adds_reference_plan_atomically_without_changing_bindi
         assert (
             finished.video_plan.segments[0].reference_images[0].prompt_text == image["prompt_text"]
         )
+        assert {
+            item.slot_index for item in finished.video_plan.segments[0].reference_images
+        } == set(range(9))
         assert finished.video_plan.segments[0].recipes == saved_bindings
 
     asyncio.run(run())

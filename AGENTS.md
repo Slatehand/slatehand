@@ -145,7 +145,7 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
   同理，每个 Segment 的对白不超过当前视频插件参考音频上限（脚本工作集 `video_packing.dialogue_audio_maximum`）是脚本打包软约束：超出时工作集
   `dialogue_audio.error` 提示拆分，Core 不拒绝脚本写入，只按槽位上限拒绝超额绑定。
 - Segment 的 `active_recipe` 来自当前视频插件的 `defaults` 与 `segment.has_dialogue` 谓词（默认部署：默认 Ref2VA；FL2VA 只在无需任何额外参考、单靠已选首尾帧即可完整表达时选用）。人类与 Agent 可切换 recipe，Core 保存输入簿并校验已有输入与目标 recipe 的兼容性。
-  多参考 recipe 由插件声明附加图片、WAV 参考音频与 MP4 参考视频槽位的数量、时长与说明要求（默认部署 Ref2VA：0–4 张图片、0–3 条音频、0–3 条 2–15 秒视频，首尾帧都可为空，但所有媒体槽位合计至少一项，有引用时均不重复且必填说明）；音频引用不会从角色卡
+  多参考 recipe 由插件声明附加图片、WAV 参考音频与 MP4 参考视频槽位的数量、时长与说明要求（默认部署 Ref2VA：0–9 张其他图片，提交前 Core 校验实际使用的首尾帧与其他图片合计 ≤9 张、0–3 条音频、0–3 条 2–15 秒视频，首尾帧都可为空，但所有媒体槽位合计至少一项，有引用时均不重复且必填说明）；音频引用不会从角色卡
   自动推导，视频只作视觉参考、不引入其音轨。Core 按稳定顺序生成 Picture/Audio/Video 各自独立从 1 起的标签，
   并与 Provider 输入保持一致。切换 recipe 前必须清空目标 recipe 不支持的参考槽位。
   一个 Segment 覆盖多个 Shot 时，`video_prompt` 工作集给出 `context.shots`（按覆盖顺序，含构图、运镜、动作、声音、

@@ -2720,7 +2720,7 @@ const schemas: Record<string, JsonSchema> = {
       "slot_index": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 3
+        "maximum": 8
       },
       "prompt_text": {
         "type": "string",
@@ -6115,7 +6115,7 @@ const schemas: Record<string, JsonSchema> = {
                   "slot_index": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 3
+                    "maximum": 8
                   },
                   "prompt_text": {
                     "type": "string",
@@ -6177,7 +6177,7 @@ const schemas: Record<string, JsonSchema> = {
                 ],
                 "additionalProperties": false
               },
-              "maxItems": 4
+              "maxItems": 9
             },
             "start_reference_keyframe_ids": {
               "type": "array",

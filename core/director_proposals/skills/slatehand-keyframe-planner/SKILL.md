@@ -117,10 +117,10 @@ Scene、Shot、Segment、对白、旁白、动作结果或时长；若上游镜�
 - 每个 Segment 输出 `frame_strategy=none|start|end|both`；只给启用且不继承的端点填写正文和角色，未启用端点用空字符串与空数组，Core 保留未启用端点已有计划。
 - 首帧对应第一个覆盖 Shot 的开头，尾帧对应最后一个覆盖 Shot 的结尾。段内切镜主要由视频提示词加 Ref2VA 角色参考表达，不为所有 Shot 强制画边界帧。
 - `continues_from_previous=true` 表示显式共用同一交接图，首帧字段为空；真正共享边界仍要求前段尾帧、后段首帧启用。不要为了减少图片破坏已经明确的共享交接。
-- `reference_images` 是可选生图增补数组，最多 4 项：`slot_index`（0–3）、`prompt_text`、`description`、`visible_character_ids`、`character_references`、`reference_asset_ids`。只规划当前 recipe 支持且需要新生成的独立画面，沿用已有槽位，不重复规划已选图片、已有成功候选或现成造型图；未列出的规划保留。
+- `reference_images` 是可选生图增补数组，最多 9 项：`slot_index`（0–8）、`prompt_text`、`description`、`visible_character_ids`、`character_references`、`reference_asset_ids`。只规划当前 recipe 支持且需要新生成的独立画面，沿用已有槽位，不重复规划已选图片、已有成功候选或现成造型图；未列出的规划保留。
 - 其他图片与首尾帧一起进入视频，同一 Segment 内必须是同一套角色造型、同一空间状态与光线，否则视频模型会在两者之间摇摆；
   已选关键帧本身也可以作为其他图片（`select_reference_image` 的 `source="keyframe"`），但不能重复当前已启用的首尾帧。
-- 其他图片无时间位置，按缺失信息选择最少必要图片，不填满四张卡片。规划不生成、不选择、不改已有视频绑定。
+- 其他图片无时间位置，按缺失信息选择最少必要图片，不必填满九张卡片；提交视频时实际使用的首尾帧与其他图片合计不得超过九张。规划不生成、不选择、不改已有视频绑定。
 
 ## 相邻 Segment 的连续边界
 

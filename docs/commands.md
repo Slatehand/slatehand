@@ -253,7 +253,7 @@ Core 分配。不支持单独移动 Shot：整场并入上一场用 `merge_adjac
 
 ## Segment 其他图片
 
-`video.save_reference_image_plan` 以 Scene scope、Segment ID 和 `slot_index`（0–3）保存当前 recipe
+`video.save_reference_image_plan` 以 Scene scope、Segment ID 和 `slot_index`（0–8）保存当前 recipe
 的一张无时间位置参考图规划，包含画面正文、用途说明、可见角色/造型与显式生图参考；Core 分配稳定规划 ID。
 图片内容可为任意画面，不限定来源或题材；MCP 同名 `save_reference_image_plan` 提供单卡规划入口，无角色时角色数组为空。
 `video.generate_reference_image` 只接收该 `image_id`，通过当前图片 Provider 生成独立候选，回调不改视频输入。

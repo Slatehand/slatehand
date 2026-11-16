@@ -532,7 +532,7 @@ function SegmentOtherImages({
         </small>
       </header>
       <div className="segment-other-image-list">
-        {Array.from({ length: Math.min(slot.maximum, 4) }, (_, index) => {
+        {Array.from({ length: Math.min(slot.maximum, 9) }, (_, index) => {
           const plan = video.reference_images?.find(
             (item) =>
               item.recipe_id === video.active_recipe &&

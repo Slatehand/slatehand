@@ -164,7 +164,7 @@ it("Ref2VA 其他图片在首尾帧下方分别从关键帧与资产库选择并
   );
 
   const section = screen.getByLabelText("Segment 其他图片");
-  expect(within(section).getByText("0/4")).toBeInTheDocument();
+  expect(within(section).getByText("0/9")).toBeInTheDocument();
   fireEvent.click(
     within(section).getAllByRole("button", { name: "从关键帧选择" })[0],
   );
@@ -480,7 +480,7 @@ it("关键帧编辑器不绑定地点视图，手工参考允许选择地点与�
   expect(onSaveReferences).toHaveBeenCalledWith(binding.segment_id, [locationId, panoramaId]);
 });
 
-it("其他图片固定四张子卡片，规划与生成动作携带独立槽位", () => {
+it("其他图片固定九张子卡片，规划与生成动作携带独立槽位", () => {
   const snapshot = structuredClone(
     fixture.continuity.production_snapshot,
   ) as unknown as StructuredDirectorSnapshot;
@@ -528,16 +528,16 @@ it("其他图片固定四张子卡片，规划与生成动作携带独立槽位"
   );
   const section = screen.getByLabelText("Segment 其他图片");
   const cards = within(section).getAllByRole("article");
-  expect(cards).toHaveLength(4);
+  expect(cards).toHaveLength(9);
   fireEvent.click(within(cards[0]).getByRole("button", { name: "生成候选" }));
   expect(onReferenceImageAction).toHaveBeenCalledWith(
     "video.generate_reference_image",
     { image_id: "a".repeat(32) },
   );
   fireEvent.click(
-    within(cards[2]).getByRole("button", { name: "规划 / 编辑" }),
+    within(cards[8]).getByRole("button", { name: "规划 / 编辑" }),
   );
-  const dialog = screen.getByRole("dialog", { name: "规划其他图片 3" });
+  const dialog = screen.getByRole("dialog", { name: "规划其他图片 9" });
   fireEvent.change(
     within(dialog).getByRole("textbox", { name: "参考图片用途" }),
     { target: { value: "道具结构" } },
@@ -552,7 +552,7 @@ it("其他图片固定四张子卡片，规划与生成动作携带独立槽位"
     expect.objectContaining({
       scope: { scene_ids: [scene.id] },
       segment_id: video.segment_id,
-      slot_index: 2,
+      slot_index: 8,
       prompt_text: "正面展示通话器按键布局",
       description: "道具结构",
     }),

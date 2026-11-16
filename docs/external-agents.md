@@ -148,12 +148,12 @@ flowchart LR
 | | `list_candidates` / `read_run` / `read_request` | 对应读取命令 |
 | 选择 | `select_keyframe_candidate` | `keyframe.select_candidate`（`keyframe_id` + `source=generation\|keyframe\|asset` 与 `source_id`，分别改写为该帧成功、未隐藏的 `keyframe_image` 或抽帧 `generation_id`、另一 Keyframe 当前选中图 `source_keyframe_id`、任一项目图片 `asset_id`） |
 | | `select_dialogue_candidate` | `dialogue.select_candidate`（`dialogue_line_id` + 该句成功、未隐藏的 `dialogue_audio` `generation_id`；会清空该 Segment 全部发声起点，之后用 `set_dialogue_timing` 重新校准） |
-| | `select_reference_image` | `video.select_reference_image`（Scene scope、Segment ID、0–3 槽位；`source=generation\|keyframe\|asset` 配 `source_id`，或 `source=remove`；`description` 留空沿用已绑定说明或卡片规划用途） |
+| | `select_reference_image` | `video.select_reference_image`（Scene scope、Segment ID、0–8 槽位；`source=generation\|keyframe\|asset` 配 `source_id`，或 `source=remove`；`description` 留空沿用已绑定说明或卡片规划用途） |
 | | `select_location_image` | `location.select_image`（`image_id` + `asset_id`：该条目成功、未隐藏候选的产物 Asset，或任一项目图片；全景条目校验 2:1，全景取景子图只接受自己的裁切产物） |
 | 规划 | `submit_proposal` | 统一入口：`capability` + `payload`；schema 按 capability 与 `payload.action` 公开完整字段：request（`raw_user_instruction`；keyframe 另需 `scene_ids` 与 Segment `target_ids`）/ get、cancel（`request_id`）/ submit（`request_id` 加内联 `proposal` 或受限 `proposal_source`）/ reject（`request_id`、`reason`） |
 | 编辑 | `edit_script` / `edit_narration` / `edit_locations` / `edit_keyframes` / `edit_references` | 各自的 `*.apply_operations` / `narration.update_cue` / `reference.apply_operations`（角色卡、造型、造型图、参考音色与旁白身份的增删改与选定，字段形状随 `reference_library` 契约下发）；`edit_narration.fields.clear_selected_audio = "zh"\|"en"` 独占一次调用并翻译为 `narration.clear_selection`；`edit_locations` 的 scope 是 `location_ids` / `scene_ids`，可编辑地点、状态、陈设、独立图片和 Scene 绑定，字段形状随 `location` 契约下发；`edit_script` 的 `insert_shot` 必须给出 `attach_to_segment_id` 或 `new_segment`，Segment 操作以 `scene_id` 为容器，保留已有对白须回传其 `id`，删除已有对白须经用户确认后列入 `dialogue_removals`（见[对白守恒](control-flow.md#对白守恒)）；`edit_keyframes` 的 `update_frame_fields.fields.extraction_suggested` 标记或取消“建议抽帧”，`fields.reuse_keyframe_id` 设置或取消（`null`）“建议复用”来源，`clear_selection` 撤销本帧选择 |
 | | `save_video_prompt` / `save_keyframe_prompt` | 不带 `recipe_inputs` 时 `video.set_prompt`；带 `recipe_inputs: {bindings, params}` 或 `attach_dialogue_audio` 时 `video.update_recipe_inputs`（正文整体保存，绑定按槽位、参数按键合并）；两者回执 `data` 带写入后的输入摘要 / 单项 `update_frame_fields` |
-| | `save_reference_image_plan` | `video.save_reference_image_plan`（Scene scope、Segment ID、0–3 槽位与完整画面计划；可规划任意图片内容，不生成、不选择） |
+| | `save_reference_image_plan` | `video.save_reference_image_plan`（Scene scope、Segment ID、0–8 槽位与完整画面计划；可规划任意图片内容，不生成、不选择） |
 | | `set_video_recipe` | `video.set_recipe` |
 | | `unlock_production` | `visual_production.unlock` |
 | 生产 | `generate_media` | 单目标 `narration.generate`（必须给 `language`）/ `location.generate_image`（`location_image`）/ `location.capture_panorama`（`panorama_capture`，创建带说明的普通子图）/ `keyframe.generate` / `video.generate_reference_image`（`reference_image`：`target_id` 为图片规划 ID）/ `video.generate` / `video.upscale` / `reference.generate_look_sheet`（`look_sheet`：`target_id` 为造型 ID，必须给 0–4 张 `identity_asset_ids` 身份参考，可选完整 `prompt_text`）/ `reference.design_voice`（`voice`：`target_id` 为角色卡或旁白身份 ID，旁白须给 `language`，必须给 `voice_description` 与 `sample_text`，可选 `seed`）/ `keyframe.extract_frame`（`frame_extraction`：`target_id` 为 Segment 首帧 Keyframe ID，可选 `frame_index`，省略取倒数第 5 帧；来源与可用性见 `project.get_details` `kind=keyframe` 的 `start_frame_extraction`） |
@@ -224,7 +224,7 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
     `image_prompt` 约定。request 回执内嵌的冻结工作集不带 `image_prompt`，以 `read_professional_workset` 为准。
   - Keyframe 与视频工作集的 `video_inputs[]` 给出每个 Segment 的当前 recipe、合法 `frame_strategies`、媒体槽位与
     `require_any`、已绑定独立参考与已保存 `reference_image_plans`。没有时间约束时可按 recipe 选择 `none`；
-    关闭端点无需编造正文，Core 保留其历史计划。可选 `segments[].reference_images[]` 按 0–3 的 `slot_index`
+    关闭端点无需编造正文，Core 保留其历史计划。可选 `segments[].reference_images[]` 按 0–8 的 `slot_index`
     增补无时间位置参考图规划，不生成、不选择、不改变已有视频绑定；已有成功候选和选图受到规划保护。
     其他图片可为任意内容，不限角色、地点或关键帧。`save_reference_image_plan` 可单独新建或编辑其中一张；
     `generate_media(kind="reference_image", target_id=<规划ID>)` 单独生成候选，经 `select_reference_image` 选入对应卡片后才进入视频输入（Agent 或人类均可）。

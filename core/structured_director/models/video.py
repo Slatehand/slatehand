@@ -27,8 +27,8 @@ class VideoReferenceImagePlan:
         _require_id(self.id, "reference_image.id")
         if not isinstance(self.recipe_id, str) or not 0 < len(self.recipe_id) <= 128:
             raise ValueError("参考图片 recipe ID 不合法。")
-        if type(self.slot_index) is not int or not 0 <= self.slot_index < 4:
-            raise ValueError("参考图片槽位必须在 0–3 之间。")
+        if type(self.slot_index) is not int or not 0 <= self.slot_index < 9:
+            raise ValueError("参考图片槽位必须在 0–8 之间。")
         if (
             not isinstance(self.description, str)
             or not self.description.strip()

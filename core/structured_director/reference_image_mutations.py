@@ -29,7 +29,7 @@ def save_reference_image_plan(document, update, slot, *, planning=False):
     plan, _, _, video = _require_video_command_target(
         document, update.scope_scene_ids, update.segment_id
     )
-    if update.slot_index >= min(slot.maximum, 4):
+    if update.slot_index >= min(slot.maximum, 9):
         raise ValueError("参考图片超过当前 recipe 输入上限。")
     _reject_active_segment_video_generation(document, video.segment_id)
     current = next(
@@ -142,7 +142,7 @@ def select_reference_image(document, update, slot):
     )
     _reject_active_segment_video_generation(document, video.segment_id)
     update = replace(update, asset_id=_resolve_selected_asset_id(document, update))
-    if update.slot_index >= min(slot.maximum, 4):
+    if update.slot_index >= min(slot.maximum, 9):
         raise ValueError("参考图片超过当前 recipe 上限。")
     bindings = dict(video.recipe_inputs.bindings)
     items = list(bindings.get(slot.key, ()))

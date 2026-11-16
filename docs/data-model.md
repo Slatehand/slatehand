@@ -325,7 +325,7 @@ Scene 保存可选 `location_id` / `state_id`，state 必须属于该 Location�
 若当前显式输入的角色或约束不受目标 recipe 支持，必须先移除这些输入。卸载插件后历史输入仍保留，可选择新的可用 recipe。
 
 显式引用的槽位、数量、时长与说明要求都来自插件 manifest，不是 Segment 模型的固定字段（例如默认部署的多参考 recipe 声明
-附加图 0–4 张、WAV 音频 0–3 条、MP4 视频 0–3 条（2–15 秒），各槽位内资产唯一且必填说明；首尾帧 recipe 不接受这些引用）。
+附加图 0–9 张（提交时与实际使用的首尾帧合计 ≤9 张）、WAV 音频 0–3 条、MP4 视频 0–3 条（2–15 秒），各槽位内资产唯一且必填说明；首尾帧 recipe 不接受这些引用）。
 Web 快照另有只读 `recipe_state`：当前可用性、切换选项及原因、完整生成时长、软时长提示和 Core 计算的输入标签。
 
 
@@ -492,7 +492,7 @@ Segment `duration_estimate_seconds/action`。
 ## Segment 无时间位置参考图片
 
 `video_plan.segments[].reference_images` 为可选图片规划数组，未建立时为空且可省略。
-每项保存 Core 分配的 `id`、`recipe_id`、`slot_index`（0–3）、`prompt_text`、`description`、
+每项保存 Core 分配的 `id`、`recipe_id`、`slot_index`（0–8）、`prompt_text`、`description`、
 `visible_character_ids`、`character_references` 和 `reference_asset_ids`。它没有视频时间位置，也不保存独立选图状态；
 实际提交的视频图片仍唯一来自 `recipes[recipe_id].bindings`。同一 recipe 的槽位位置不重复。
 生成记录使用 `video_reference_image` kind，产物存于 `assets/images/video-references/`，回调只新增候选。

@@ -48,8 +48,8 @@ _KEYFRAME_OVERRIDES = {
         "items": {"type": "string", "pattern": "^[0-9a-f]{32}$"}
     },
     "segments[].end_character_references": _CHARACTER_REFERENCES_SCHEMA,
-    "segments[].reference_images": {"maxItems": 4},
-    "segments[].reference_images[].slot_index": {"minimum": 0, "maximum": 3},
+    "segments[].reference_images": {"maxItems": 9},
+    "segments[].reference_images[].slot_index": {"minimum": 0, "maximum": 8},
     "segments[].reference_images[].prompt_text": {"minLength": 1, "maxLength": 18000},
     "segments[].reference_images[].description": {"minLength": 1, "maxLength": 2000},
     "segments[].reference_images[].character_references": _CHARACTER_REFERENCES_SCHEMA,

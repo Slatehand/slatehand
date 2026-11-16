@@ -329,7 +329,7 @@ VIDEO = PluginManifest(
                     "additional_images",
                     Role.REFERENCE_IMAGE,
                     "附加图片",
-                    maximum=4,
+                    maximum=9,
                     media_types=IMAGE_MEDIA_TYPES,
                     describe="required",
                     namespace="picture",

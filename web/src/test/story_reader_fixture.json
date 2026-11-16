@@ -1664,7 +1664,7 @@
                 "role": "reference_image",
                 "label": "附加图片",
                 "minimum": 0,
-                "maximum": 4,
+                "maximum": 9,
                 "media_types": [
                   "image/png",
                   "image/jpeg",
@@ -2739,7 +2739,12 @@
                   "<Picture 1>",
                   "<Picture 2>",
                   "<Picture 3>",
-                  "<Picture 4>"
+                  "<Picture 4>",
+                  "<Picture 5>",
+                  "<Picture 6>",
+                  "<Picture 7>",
+                  "<Picture 8>",
+                  "<Picture 9>"
                 ],
                 "reference_audios": [
                   "<Audio 1>",
@@ -2878,7 +2883,12 @@
                   "<Picture 1>",
                   "<Picture 2>",
                   "<Picture 3>",
-                  "<Picture 4>"
+                  "<Picture 4>",
+                  "<Picture 5>",
+                  "<Picture 6>",
+                  "<Picture 7>",
+                  "<Picture 8>",
+                  "<Picture 9>"
                 ],
                 "reference_audios": [
                   "<Audio 1>",

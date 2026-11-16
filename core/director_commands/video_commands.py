@@ -147,8 +147,8 @@ _SELECTION_SOURCES = ("asset_id", "generation_id", "keyframe_id")
 
 
 def _reference_slot(value):
-    if type(value) is not int or not 0 <= value < 4:
-        raise ValueError("slot_index 必须为 0–3。")
+    if type(value) is not int or not 0 <= value < 9:
+        raise ValueError("slot_index 必须为 0–8。")
     return value
 
 

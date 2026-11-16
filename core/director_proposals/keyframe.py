@@ -132,8 +132,8 @@ class KeyframeReferenceImageProposal:
     reference_asset_ids: tuple[str, ...] = ()
 
     def __post_init__(self):
-        if type(self.slot_index) is not int or not 0 <= self.slot_index < 4:
-            raise ValueError("其他图片槽位必须为 0–3。")
+        if type(self.slot_index) is not int or not 0 <= self.slot_index < 9:
+            raise ValueError("其他图片槽位必须为 0–8。")
         if not self.prompt_text.strip() or len(self.prompt_text) > 18000:
             raise ValueError("其他图片画面正文不能为空或过长。")
         if not self.description.strip() or len(self.description) > 2000:
@@ -203,8 +203,8 @@ class KeyframeSegmentProposal:
             if len(references) != len(set(references)) or len(references) > 4:
                 raise ValueError("每帧参考关键帧或地点图片不能重复且各最多 4 个。")
         positions = [item.slot_index for item in self.reference_images]
-        if len(positions) > 4 or len(positions) != len(set(positions)):
-            raise ValueError("其他图片规划最多 4 张且槽位不得重复。")
+        if len(positions) > 9 or len(positions) != len(set(positions)):
+            raise ValueError("其他图片规划最多 9 张且槽位不得重复。")
         if type(self.continues_from_previous) is not bool:
             raise ValueError("Segment 是否承接上一 Segment 必须是布尔值。")
         if self.frame_strategy not in {"none", "start", "end", "both"}:

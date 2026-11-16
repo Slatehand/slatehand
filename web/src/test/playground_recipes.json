@@ -784,7 +784,7 @@
               "role": "reference_image",
               "label": "附加图片",
               "minimum": 0,
-              "maximum": 4,
+              "maximum": 9,
               "media_types": [
                 "image/png",
                 "image/jpeg",

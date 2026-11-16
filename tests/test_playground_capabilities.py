@@ -289,10 +289,10 @@ def test_video_duration_has_no_upper_limit() -> None:
 
 def test_ref2va_list_limits_and_required_descriptions() -> None:
     base = SAMPLES[PlaygroundCapability.VIDEO_REF2VA]
-    with pytest.raises(ValueError, match="0 到 4 项"):
+    with pytest.raises(ValueError, match="0 到 9 项"):
         _parse(
             PlaygroundCapability.VIDEO_REF2VA,
-            {**base, "additional_images": [_described(ID_B)] * 5},
+            {**base, "additional_images": [_described(ID_B)] * 10},
         )
     with pytest.raises(ValueError, match="0 到 3 项"):
         _parse(

@@ -977,7 +977,7 @@ def snapshot_schemas() -> dict[str, dict]:
                 {
                     "id": ID,
                     "recipe_id": TEXT,
-                    "slot_index": {"type": "integer", "minimum": 0, "maximum": 3},
+                    "slot_index": {"type": "integer", "minimum": 0, "maximum": 8},
                     "prompt_text": {"type": "string", "maxLength": 18000},
                     "description": TEXT,
                     "visible_character_ids": _array(ID),

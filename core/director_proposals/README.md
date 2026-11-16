@@ -5,7 +5,7 @@
 - `reference_library.py`：角色卡与独立旁白身份 proposal；
 - `script.py`：首次脚本、局部脚本回改和 Scene/Shot/Segment 输入；
 - `narration.py`：旁白审核上下文与参数更新 proposal；
-- `keyframe.py`：Keyframe 规划上下文、完整计划和 command operations proposal；Scene 地点与图片说明只作语义上下文，输出不含地点绑定字段；可增补最多四张无时间位置的 `reference_images` 规划，实际选图仍由人类写入视频 recipe 输入簿；
+- `keyframe.py`：Keyframe 规划上下文、完整计划和 command operations proposal；Scene 地点与图片说明只作语义上下文，输出不含地点绑定字段；可增补最多九张无时间位置的 `reference_images` 规划，实际选图仍由人类写入视频 recipe 输入簿；
 - `location.py`：地点规划输入（每个 Scene 的全部 Shot 与可见角色名、已有地点归属）和增补式 proposal：
   `locations[]`（每项给已有 `id` 或新建 `key`，含陈设、状态和独立图片）、`scene_bindings[]`。
   未列出的项不删除；列出的已有项整体替换；新建项用局部 key 互引，key 规则与 `location.apply_operations` 相同；

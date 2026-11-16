@@ -366,7 +366,7 @@ class FrameEdit(Request):
 class ReferenceImagePlan(Request):
     scene_ids: Targets
     segment_id: ID
-    slot_index: Annotated[int, Field(ge=0, le=3, description="其他图片子卡片，0–3。")]
+    slot_index: Annotated[int, Field(ge=0, le=8, description="其他图片子卡片，0–8。")]
     prompt_text: Annotated[str, Field(min_length=1, max_length=18000, pattern=r"\S")]
     description: Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
     visible_character_ids: IDs
@@ -695,7 +695,7 @@ class DialogueSelection(Request):
 class ReferenceImageSelection(Request):
     scene_ids: Targets
     segment_id: ID
-    slot_index: Annotated[int, Field(ge=0, le=3, description="其他图片子卡片，0–3。")]
+    slot_index: Annotated[int, Field(ge=0, le=8, description="其他图片子卡片，0–8。")]
     source: Literal["generation", "keyframe", "asset", "remove"] = Field(
         description=(
             "generation：成功未隐藏的 Generation 产物（如本卡 video_reference_image 候选）；"
@@ -826,7 +826,7 @@ DESCRIPTIONS = {
             "全景条目须是 2:1 等距柱状全景；选前用 read_media_input 看图；人类可随时改选。",
             "设置单Segment视频模式，不生成。",
             "按已选 TTS WAV 的真实时长设置逐句发声起点与 Segment 视频时长。",
-            "新建或编辑一个 Segment 的其他图片规划，slot_index 为 0–3；"
+            "新建或编辑一个 Segment 的其他图片规划，slot_index 为 0–8；"
             "可规划任意画面内容，不限角色或地点，无时间位置；不生成、不选择。"
             "用 read_story 的 selection/keyframe 扩展读取 video_inputs 中的规划 ID 和实际绑定。",
             "像闹钟一样叫用户回来：在 Core 主机上循环响提示音并弹出带 message 的对话框，"

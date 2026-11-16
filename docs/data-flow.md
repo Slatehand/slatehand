@@ -211,7 +211,7 @@ flowchart LR
   `continues_from_previous_segment` / `continues_into_next_segment` 标出与相邻 Segment 共享边界 Shot 的延续关系，
   段内切镜写成软约束。
 - 视频卡通过只读 `inputs-preview` 请求预览未保存输入。Core 返回切换选项与原因，Web 不推导厂商模式规则或标签。
-- Generation 保存有序去重输入 Asset ID、recipe 机制参数和 `provider_snapshot`。完整引用数量由插件槽位决定（默认部署最多 12 个 Asset：2 张边界图、4 张附加图、3 条音频、3 条视频）。
+- Generation 保存有序去重输入 Asset ID、recipe 机制参数和 `provider_snapshot`。完整引用数量由插件槽位决定（默认部署最多 15 个 Asset：边界图与附加图合计最多 9 张、3 条音频、3 条视频；Core 在构造提交请求时按实际使用的图片总数校验，超限时不创建 Generation、不调用 Provider）。
 - 插件自行将分辨率设置与画幅换算成模型画布；Core 不解释插件的采样参数。
 
 ### 输入签名与软提示
