@@ -489,22 +489,6 @@ export function App() {
   }
   async function autoCalibrateDialogueTimings() {
     if (selectedProject === null || structuredSnapshot === null) return;
-    const plan = new Map(
-      (structuredSnapshot.dialogue_plan?.items ?? []).map((item) => [
-        item.dialogue_line_id,
-        item,
-      ]),
-    );
-    const count =
-      structuredSnapshot.director_script?.scenes
-        .flatMap((scene) => scene.segments)
-        .filter(
-          (segment) =>
-            segment.dialogue_lines.length > 0 &&
-            segment.dialogue_lines.every(
-              (line) => plan.get(line.id)?.selected_audio_asset_id,
-            ),
-        ).length ?? 0;
     const succeeded = await mutateStructuredDirector(
       () =>
         structuredDirectorApi.autoCalibrateDialogueTimings(
@@ -513,7 +497,8 @@ export function App() {
         ),
       "set_dialogue_timing",
     );
-    if (succeeded) setNotice(`已按真实 TTS 音频校准 ${count} 个对白片段。`);
+    if (succeeded)
+      setNotice("已为未设置时序的对白片段补齐起点，保留已有时序与更长的视频时长。");
   }
   async function unlockVisualProduction() {
     if (selectedProject === null || structuredSnapshot === null) return;

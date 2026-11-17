@@ -432,15 +432,13 @@ def _validate_dialogue_plan(document, asset_by_id) -> None:
                 for item in segment_items
             ):
                 raise ValueError("Segment 的对白时序必须一次完整覆盖全部 DialogueLine。")
-            previous_end = 0.0
+            maximum_end = 0.0
             for item in segment_items:
                 assert item.start_seconds is not None
                 assert item.selected_audio_asset_id is not None
                 asset = asset_by_id[item.selected_audio_asset_id]
-                if item.start_seconds + 1e-6 < previous_end:
-                    raise ValueError("Segment 的对白音频不能重叠。")
-                previous_end = item.start_seconds + asset.duration_seconds
-            if previous_end > segment.duration_estimate_seconds + 1e-6:
+                maximum_end = max(maximum_end, item.start_seconds + asset.duration_seconds)
+            if maximum_end > segment.duration_estimate_seconds + 1e-6:
                 raise ValueError("Segment 时长不能短于对白真实音频结束时间。")
 
 

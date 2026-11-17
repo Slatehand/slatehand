@@ -140,7 +140,7 @@ Core 分配。不支持单独移动 Shot：整场并入上一场用 `merge_adjac
 | `dialogue.generate_batch` | H | Web 批量按钮只为当前未选且没有在途任务的 DialogueLine 逐条提交；不选择候选、不自动校准时序 |
 | `dialogue.select_candidate` | A/H | `dialogue_line_id` + `generation_id`：接受属于该 DialogueLine 的成功、未隐藏 WAV，Agent 与人类写同一选择、任一方随时可改选；正文、音色或表演参数变化只作软提示，不阻止选择；选择任一句会清空该 Segment 全部起点并失效视频选择，之后用 `dialogue.set_timing` 重新校准；已是当前选择时 noop |
 | 对白候选取消 | H | `POST dialogue-lines/{id}/clear-selection`：清空该句已选 WAV，与换选同样清空该 Segment 全部起点并失效视频选择；历史候选保留，无选择时 noop |
-| `dialogue.set_timing` | A | `segment_id` + 全部 DialogueLine 的 `starts` + `duration_seconds`；按真实 WAV 时长拒绝重叠，并要求 Segment 时长不短于最后一句结束时间 |
+| `dialogue.set_timing` | A | `segment_id` + 全部 DialogueLine 的 `starts` + `duration_seconds`；起点为非负有限秒数，允许任意顺序与重叠，每句 WAV 必须完整落在视频时长内；可重复调整 |
 
 ## 地点
 

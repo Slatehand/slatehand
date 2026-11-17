@@ -3398,6 +3398,7 @@
           "type": "string"
         },
         "starts": {
+          "additionalProperties": false,
           "patternProperties": {
             "^[0-9a-f]{32}$": {
               "minimum": 0,

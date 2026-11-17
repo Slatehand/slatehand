@@ -548,7 +548,6 @@ def _rebase_dialogue_plan(
         if (
             (old := previous_segments.get(segment.id)) is None
             or old.dialogue_lines != segment.dialogue_lines
-            or old.duration_estimate_seconds != segment.duration_estimate_seconds
         )
     }
     items: list[DialogueAudio] = []

@@ -57,6 +57,9 @@ adapter 解析为对象后仍走同一 Core proposal 命令、revision CAS 和�
 - `submit_proposal` 的 submit 必须且只能提供 `proposal` 或 `proposal_source` 之一。工作区文件名由当前 `request_id` 确定，adapter
   拒绝 symlink、非普通文件、校验变化和非 object JSON；同一文件可配合同一 revision/idempotency key 重放。
 - 读工具的幂等键由 MCP 生成（`mcp-read:<uuid>`）；写工具的 `idempotency_key` 必须由模型提供。
+- `set_dialogue_timing.starts` 是以 32 位小写十六进制 `dialogue_line_id` 为键、非负有限秒数为值的 JSON 对象。
+  JSON 语法中的包围引号不属于键名；键本身含引号或空白时返回字典键格式错误。空对象和多键对象均通过 MCP 形状校验，
+  Core 再校验是否完整覆盖目标 Segment 的全部对白、已选 WAV 和视频时间边界；允许任意发声顺序与重叠，可重复调整。
 - 旁白固定中英双语：`edit_narration.fields` 的正文与合成参数放在 `zh` / `en` 子对象；`generate_media` 生成旁白必须指定 `language`；
   `edit_narration.fields.clear_selected_audio = "zh" | "en"` 独占一次调用并翻译为 `narration.clear_selection`。
 - `save_video_prompt` 不带 `recipe_inputs` 与 `attach_dialogue_audio` 时翻译为 `video.set_prompt`；带任一项时翻译为

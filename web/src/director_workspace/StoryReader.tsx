@@ -1,5 +1,5 @@
 import { LocationBinding } from "./location";
-import { DraftProtection } from "./draft_protection";
+import { DraftProtection, useProtectedValue } from "./draft_protection";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   DialogueLine,
@@ -207,6 +207,9 @@ export function StoryReader(props: WorkspaceFlatProps) {
   const calibratableDialogueSegments = dialogueSegments.filter((segment) =>
     segment.dialogue_lines.every(
       (line) => dialogueAudioByLine.get(line.id)?.selected_audio_asset_id,
+    ) &&
+    segment.dialogue_lines.some(
+      (line) => dialogueAudioByLine.get(line.id)?.start_seconds == null,
     ),
   );
   const pendingGenerationItems: Record<string, SegmentPendingGenerationItem[]> =
@@ -647,6 +650,7 @@ export function StoryReader(props: WorkspaceFlatProps) {
                 <SegmentText segment={segment} character={character} />
                 {segment.dialogue_lines.length ? (
                   <DialogueProductionPanel
+                    key={segment.id}
                     segment={segment}
                     snapshot={snapshot}
                     busy={busy}
@@ -860,7 +864,7 @@ export function StoryReader(props: WorkspaceFlatProps) {
                     按真实音频校准全部对白时长
                   </button>
                   <p aria-label="对白时长校准范围">
-                    {`可校准 ${calibratableDialogueSegments.length}/${dialogueSegments.length} 个对白片段；未选齐全部对白 WAV 的片段会跳过。`}
+                    {`可校准 ${calibratableDialogueSegments.length}/${dialogueSegments.length} 个对白片段；已有时序与未选齐全部对白 WAV 的片段会跳过。`}
                   </p>
                 </>
               ) : null}
@@ -1004,6 +1008,16 @@ function DialogueProductionPanel({
   const selectedCount = selected.filter(
     ({ asset }) => asset !== undefined,
   ).length;
+  const timingSet = selected.every(({ item }) => item?.start_seconds != null);
+  const timingDraft = useProtectedValue({
+    duration: String(segment.duration_estimate_seconds),
+    starts: Object.fromEntries(
+      selected.map(({ line, item }) => [
+        line.id,
+        item?.start_seconds == null ? "" : String(item.start_seconds),
+      ]),
+    ),
+  });
   const autoTiming = () => {
     let cursor = 0.5;
     const starts: Record<string, number> = {};
@@ -1011,7 +1025,11 @@ function DialogueProductionPanel({
       starts[line.id] = cursor;
       cursor += (asset?.duration_seconds ?? 0) + 0.25;
     }
-    onSetTiming?.(segment.id, starts, Math.max(0.2, cursor + 0.25));
+    onSetTiming?.(
+      segment.id,
+      starts,
+      Math.max(segment.duration_estimate_seconds, cursor + 0.25),
+    );
   };
   return (
     <section aria-label="对白 TTS" className="dialogue-production-panel">
@@ -1403,16 +1421,91 @@ function DialogueProductionPanel({
               );
             })}
           </div>
+          <form
+            aria-label="对白时序编辑"
+            className="dialogue-timing-editor"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!ready || timingDraft.conflict) return;
+              onSetTiming?.(
+                segment.id,
+                Object.fromEntries(
+                  selected.map(({ line }) => [
+                    line.id,
+                    Number(timingDraft.value.starts[line.id]),
+                  ]),
+                ),
+                Number(timingDraft.value.duration),
+              );
+            }}
+          >
+            <fieldset disabled={busy || !ready || !onSetTiming}>
+              <legend>对白起点与视频时长</legend>
+              <p>起点可自由调整，允许对白重叠；每句音频须完整落在视频时间内。</p>
+              <label>
+                视频时长（秒）
+                <input
+                  type="number"
+                  min="0.2"
+                  step="any"
+                  required
+                  value={timingDraft.value.duration}
+                  onChange={(event) => timingDraft.setValue({
+                    ...timingDraft.value,
+                    duration: event.target.value,
+                  })}
+                />
+              </label>
+              {selected.map(({ line, asset }, index) => (
+                <label key={line.id}>
+                  {`对白 ${index + 1} 起点（秒）`}
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    aria-label={`对白 ${index + 1} 起点（秒）`}
+                    value={timingDraft.value.starts[line.id] ?? ""}
+                    onChange={(event) => timingDraft.setValue({
+                      ...timingDraft.value,
+                      starts: { ...timingDraft.value.starts, [line.id]: event.target.value },
+                    })}
+                  />
+                  <small aria-hidden="true">
+                    {asset?.duration_seconds == null
+                      ? "待选择 WAV"
+                      : `音频 ${asset.duration_seconds.toFixed(3)} 秒`}
+                  </small>
+                </label>
+              ))}
+              {timingDraft.conflict ? (
+                <p role="alert">对白时序已被其他操作修改，请重新加载后再编辑。</p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={!timingDraft.dirty || timingDraft.conflict}
+              >
+                保存对白时序
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!timingDraft.dirty}
+                onClick={timingDraft.reset}
+              >
+                重新加载时序
+              </button>
+            </fieldset>
+          </form>
           <footer className="dialogue-timing-actions">
             <button
-              disabled={busy || !ready || !onSetTiming}
+              disabled={busy || !ready || !onSetTiming || timingSet || timingDraft.dirty}
               onClick={autoTiming}
             >
               按真实音频自动校准时长
             </button>
             <p>
-              自动校准会留基础停顿；Director Agent
-              可按镜头和情绪设置更大的余量。
+              自动校准只补未设置的时序，并保留更长的视频时长；已有起点可在上方自由编辑。
             </p>
           </footer>
         </div>

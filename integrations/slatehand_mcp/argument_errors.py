@@ -90,10 +90,15 @@ def _issue(error: dict, path: str) -> dict[str, object]:
     if kind == "string_pattern_mismatch":
         pattern = str(ctx.get("pattern", ""))
         if pattern == _ID_PATTERN:
+            message = (
+                "字典键应为 32 位小写十六进制 ID；键本身不能包含引号或空白。"
+                if error["loc"][-1:] == ("[key]",)
+                else "应为 32 位小写十六进制 ID。"
+            )
             return {
                 "path": path,
                 "reason": "invalid_id",
-                "message": "应为 32 位小写十六进制 ID。",
+                "message": message,
                 "expected": pattern,
             }
         return {"path": path, "reason": "pattern", "message": "格式不符。", "expected": pattern}

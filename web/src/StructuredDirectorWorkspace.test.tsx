@@ -4050,16 +4050,67 @@ it('Scene 正文覆盖全部镜头对白；旁白未规划 Shot 时保持可读�
    for(const line of g.dialogue_lines) expect(screen.getByText(line.text)).toBeInTheDocument();
  }
 });
-it('项目概览可一次校准所有已选齐 TTS 的对白片段',()=>{
+it('项目概览只校准已选齐 TTS 且未设置时序的对白片段',()=>{
  const value=structuredClone(readerFixture.continuity.production_snapshot) as unknown as StructuredDirectorSnapshot;
  const calibrate=vi.fn();
  value.dialogue_plan!.items[0].selected_audio_asset_id='a'.repeat(32);
- renderWorkspace({onAutoCalibrateDialogueTimings:calibrate},value,false);
+ const view=renderWorkspace({onAutoCalibrateDialogueTimings:calibrate},value,false);
  expect(screen.getByLabelText('对白时长校准范围')).toHaveTextContent('可校准 1/2 个对白片段');
  const button=screen.getByRole('button',{name:'按真实音频校准全部对白时长'});
  expect(button).toBeEnabled();
  fireEvent.click(button);
  expect(calibrate).toHaveBeenCalledOnce();
+ const updated=structuredClone(value);
+ updated.dialogue_plan!.items[0].start_seconds=0.5;
+ view.rerenderSnapshot(updated);
+ expect(screen.getByLabelText('对白时长校准范围')).toHaveTextContent('可校准 0/2 个对白片段');
+ expect(button).toBeDisabled();
+ expect(screen.getByLabelText('对白时长校准范围')).toHaveTextContent('已有时序');
+});
+it('对白起点可编辑成重叠和倒序；保留刷新中的草稿并阻止覆盖并发时序',()=>{
+ const value=structuredClone(readerFixture.continuity.production_snapshot) as unknown as StructuredDirectorSnapshot;
+ const scene=value.director_script!.scenes[1];
+ const segment=scene.segments[0];
+ const other=value.director_script!.scenes[2].segments[0];
+ segment.dialogue_lines.push(other.dialogue_lines[0]);
+ other.dialogue_lines=[];
+ segment.duration_estimate_seconds=15;
+ const audio={...value.assets[0],id:'a'.repeat(32),media_type:'audio/wav' as const,duration_seconds:1};
+ value.assets.push(audio);
+ value.dialogue_plan!.items.forEach((item,index)=>{
+   item.selected_audio_asset_id=audio.id;
+   item.start_seconds=index===0?1.75:0.5;
+ });
+ const save=vi.fn();
+ const view=renderWorkspace({onSetDialogueTiming:save},value);
+ const nav=screen.getByRole('navigation',{name:'故事层级'});
+ fireEvent.click(within(nav).getByRole('button',{name:/场景 2.*戏剧/}));
+ fireEvent.click(within(within(nav).getByRole('list',{name:'场景 2 的生成片段'})).getByRole('button',{name:/片段 1.*小满抬头/}));
+ fireEvent.click(screen.getByRole('button',{name:/对白 TTS.*已选/}));
+ expect(screen.getByRole('button',{name:'按真实音频自动校准时长'})).toBeDisabled();
+ fireEvent.change(screen.getByLabelText('对白 1 起点（秒）'),{target:{value:'0.5'}});
+ const refresh=structuredClone(value);refresh.revision+=1;
+ view.rerenderSnapshot(refresh);
+ expect(screen.getByLabelText('对白 1 起点（秒）')).toHaveValue(0.5);
+ fireEvent.submit(screen.getByRole('form',{name:'对白时序编辑'}));
+ expect(save).toHaveBeenLastCalledWith(segment.id,Object.fromEntries(segment.dialogue_lines.map(line=>[line.id,0.5])),15);
+ fireEvent.change(screen.getByLabelText('对白 1 起点（秒）'),{target:{value:'2'}});
+ fireEvent.change(screen.getByLabelText('视频时长（秒）'),{target:{value:'16'}});
+ fireEvent.submit(screen.getByRole('form',{name:'对白时序编辑'}));
+ expect(save).toHaveBeenLastCalledWith(segment.id,{[segment.dialogue_lines[0].id]:2,[segment.dialogue_lines[1].id]:0.5},16);
+ const concurrent=structuredClone(refresh);concurrent.revision+=1;
+ concurrent.dialogue_plan!.items[0].start_seconds=3;
+ view.rerenderSnapshot(concurrent);
+ expect(screen.getByRole('alert')).toHaveTextContent('对白时序已被其他操作修改');
+ expect(screen.getByRole('button',{name:'保存对白时序'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'重新加载时序'}));
+ expect(screen.getByLabelText('对白 1 起点（秒）')).toHaveValue(3);
+ expect(screen.getByLabelText('视频时长（秒）')).toHaveValue(15);
+ const untimed=structuredClone(concurrent);untimed.revision+=1;
+ untimed.dialogue_plan!.items.forEach(item=>{item.start_seconds=null;});
+ view.rerenderSnapshot(untimed);
+ fireEvent.click(screen.getByRole('button',{name:'按真实音频自动校准时长'}));
+ expect(save).toHaveBeenLastCalledWith(segment.id,{[segment.dialogue_lines[0].id]:0.5,[segment.dialogue_lines[1].id]:1.75},15);
 });
 it('Segment 对白卡展示实时进度、失败原因和可试听的 Mac 产物',()=>{
  const value=structuredClone(readerFixture.continuity.production_snapshot) as unknown as StructuredDirectorSnapshot;

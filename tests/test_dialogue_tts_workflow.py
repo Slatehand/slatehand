@@ -271,37 +271,206 @@ def test_dialogue_batch_stages_every_missing_line_and_does_not_regenerate_candid
     asyncio.run(run())
 
 
-def test_dialogue_timing_rejects_overlap_and_video_shorter_than_audio(tmp_path):
+@pytest.mark.parametrize("offsets", [(0.0, 0.0, 0.0), (2.0, 0.25, 1.0)])
+def test_dialogue_timing_allows_overlap_and_arbitrary_order(tmp_path, offsets):
+    from test_prompt_worksets import fixture
+
+    from core.structured_director.dialogue_timing import actual_dialogue_timing
+
+    async def run():
+        store, service, document, _ = await fixture(tmp_path)
+        segment = document.director_script.scenes[0].segments[0]
+        starts = {
+            line.id: start for line, start in zip(segment.dialogue_lines, offsets, strict=True)
+        }
+        duration = max(offsets) + 1.0
+        document = await service.set_dialogue_timing(
+            segment_id=segment.id,
+            starts=starts,
+            duration_seconds=duration,
+            expected_revision=document.revision,
+        )
+        assert store.read() == document
+        timed_segment = document.director_script.scenes[0].segments[0]
+        timing = actual_dialogue_timing(document, timed_segment)
+        assert timing["ready"] is True
+        assert timing["minimum_duration_seconds"] == duration
+        assert timing["lead_seconds"] == min(offsets)
+        assert timing["tail_seconds"] == 0
+        assert {
+            line["dialogue_line_id"]: line["start_seconds"] for line in timing["lines"]
+        } == starts
+        # 已完成校准后仍可重新安排全部起点，包括重叠与倒序。
+        shifted = {line_id: start + 0.5 for line_id, start in starts.items()}
+        document = await service.set_dialogue_timing(
+            segment_id=segment.id,
+            starts=shifted,
+            duration_seconds=duration + 0.5,
+            expected_revision=document.revision,
+        )
+        assert {
+            item.dialogue_line_id: item.start_seconds
+            for item in store.read().dialogue_plan.items
+            if item.dialogue_line_id in shifted
+        } == shifted
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("offsets", [(0, 1.25, 2.5), (2.01, 0, 1)])
+def test_dialogue_timing_rejects_any_audio_outside_video(tmp_path, offsets):
     from test_prompt_worksets import fixture
 
     async def run():
-        _store, service, document, _ = await fixture(tmp_path)
+        store, service, document, _ = await fixture(tmp_path)
         segment = document.director_script.scenes[0].segments[0]
         line_ids = [line.id for line in segment.dialogue_lines]
-        with pytest.raises(ValueError, match="不能重叠"):
+        before = store.path.read_bytes()
+        with pytest.raises(ValueError, match="不能短于对白最晚结束时间"):
             await service.set_dialogue_timing(
                 segment_id=segment.id,
-                starts={line_id: 0.0 for line_id in line_ids},
-                duration_seconds=10.0,
-                expected_revision=document.revision,
-            )
-        with pytest.raises(ValueError, match="不能短于最后一句对白结束时间"):
-            await service.set_dialogue_timing(
-                segment_id=segment.id,
-                starts={line_id: index * 1.25 for index, line_id in enumerate(line_ids)},
+                starts=dict(zip(line_ids, offsets, strict=True)),
                 duration_seconds=3.0,
                 expected_revision=document.revision,
+            )
+        assert store.path.read_bytes() == before
+
+        # 模型重读也检查所有音频，不能只检查剧本中的最后一句。
+        with pytest.raises(ValueError, match="Segment 时长不能短于对白真实音频结束时间"):
+            replace(
+                document,
+                dialogue_plan=replace(
+                    document.dialogue_plan,
+                    items=tuple(
+                        replace(item, start_seconds=offsets[line_ids.index(item.dialogue_line_id)])
+                        if item.dialogue_line_id in line_ids
+                        else item
+                        for item in document.dialogue_plan.items
+                    ),
+                ),
+                director_script=replace(
+                    document.director_script,
+                    scenes=(
+                        replace(
+                            document.director_script.scenes[0],
+                            segments=(
+                                replace(segment, duration_estimate_seconds=3.0),
+                                *document.director_script.scenes[0].segments[1:],
+                            ),
+                        ),
+                        *document.director_script.scenes[1:],
+                    ),
+                ),
             )
 
     asyncio.run(run())
 
 
-def test_auto_calibrate_all_ready_dialogue_segments_uses_selected_wav_durations(tmp_path):
+@pytest.mark.parametrize("invalid_start", [-0.1, float("nan"), float("inf"), True, None])
+def test_dialogue_timing_rejects_negative_and_nonfinite_or_nonnumeric_starts(
+    tmp_path, invalid_start
+):
+    from test_prompt_worksets import fixture
+
+    async def run():
+        store, service, document, _ = await fixture(tmp_path)
+        segment = document.director_script.scenes[0].segments[0]
+        starts = {line.id: 0.0 for line in segment.dialogue_lines}
+        starts[segment.dialogue_lines[0].id] = invalid_start
+        before = store.path.read_bytes()
+        with pytest.raises(ValueError, match="对白发声起点必须是非负有限数值"):
+            await service.set_dialogue_timing(
+                segment_id=segment.id,
+                starts=starts,
+                duration_seconds=15,
+                expected_revision=document.revision,
+            )
+        assert store.path.read_bytes() == before
+
+    asyncio.run(run())
+
+
+def test_duration_edits_and_auto_calibration_preserve_manual_dialogue_timing(tmp_path):
+    from test_prompt_worksets import fixture
+
+    async def run():
+        store, service, document, _ = await fixture(tmp_path)
+        scene = document.director_script.scenes[0]
+        segment = scene.segments[0]
+        starts = {
+            line.id: start for line, start in zip(segment.dialogue_lines, (10, 0, 5), strict=True)
+        }
+        document = await service.set_dialogue_timing(
+            segment_id=segment.id,
+            starts=starts,
+            duration_seconds=15,
+            expected_revision=document.revision,
+        )
+        before = store.path.read_bytes()
+        unchanged = await service.auto_calibrate_dialogue_timings(
+            expected_revision=document.revision
+        )
+        assert unchanged == document
+        assert store.path.read_bytes() == before
+
+        async def set_duration(duration):
+            return (
+                await service.execute_director_command(
+                    DirectorCommand(
+                        "script.apply_operations",
+                        store.read().revision,
+                        f"duration-{duration}",
+                        {
+                            "scope": {"scene_ids": [scene.id]},
+                            "operations": [
+                                {
+                                    "op": "update_segment_fields",
+                                    "segment_id": segment.id,
+                                    "fields": {"duration_estimate_seconds": duration},
+                                }
+                            ],
+                        },
+                    )
+                )
+            ).document
+
+        for duration in (16, 11):
+            document = await set_duration(duration)
+            assert (
+                document.director_script.scenes[0].segments[0].duration_estimate_seconds == duration
+            )
+            assert {
+                item.dialogue_line_id: item.start_seconds
+                for item in document.dialogue_plan.items
+                if item.dialogue_line_id in starts
+            } == starts
+        before = store.path.read_bytes()
+        with pytest.raises(ValueError, match="Segment 时长不能短于对白真实音频结束时间"):
+            await set_duration(10.9)
+        assert store.path.read_bytes() == before
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("initial_duration", [4.0, 15.0])
+def test_auto_calibrate_all_ready_dialogue_segments_uses_selected_wav_durations(
+    tmp_path, initial_duration
+):
     from test_prompt_worksets import fixture
 
     async def run():
         _store, service, document, _ = await fixture(tmp_path)
         segment = document.director_script.scenes[0].segments[0]
+        document = await service.set_dialogue_timing(
+            segment_id=segment.id,
+            starts={
+                item.dialogue_line_id: item.start_seconds
+                for item in document.dialogue_plan.items
+                if item.dialogue_line_id in {line.id for line in segment.dialogue_lines}
+            },
+            duration_seconds=initial_duration,
+            expected_revision=document.revision,
+        )
         first_line_id = segment.dialogue_lines[0].id
         first_item = next(
             item for item in document.dialogue_plan.items if item.dialogue_line_id == first_line_id
@@ -336,7 +505,7 @@ def test_auto_calibrate_all_ready_dialogue_segments_uses_selected_wav_durations(
             assert plan[line.id].start_seconds == cursor
             cursor += assets[plan[line.id].selected_audio_asset_id].duration_seconds + 0.25
         calibrated_segment = calibrated.director_script.scenes[0].segments[0]
-        assert calibrated_segment.duration_estimate_seconds == cursor + 0.25
+        assert calibrated_segment.duration_estimate_seconds == max(initial_duration, cursor + 0.25)
         assert {
             item.dialogue_line_id: item.selected_audio_asset_id
             for item in calibrated.dialogue_plan.items
@@ -346,6 +515,49 @@ def test_auto_calibrate_all_ready_dialogue_segments_uses_selected_wav_durations(
             expected_revision=calibrated.revision
         )
         assert unchanged.revision == calibrated.revision
+
+    asyncio.run(run())
+
+
+def test_auto_calibration_fills_missing_segment_and_preserves_other_manual_timing(tmp_path):
+    from test_prompt_worksets import fixture
+
+    async def run():
+        store, service, document, _ = await fixture(tmp_path)
+        scene = document.director_script.scenes[0]
+        first, second, *rest = scene.segments
+        first_lines = first.dialogue_lines[:2]
+        moved_line = first.dialogue_lines[2]
+        document = await service.save_script(
+            (
+                replace(
+                    scene,
+                    segments=(
+                        replace(first, dialogue_lines=first_lines),
+                        replace(second, dialogue_lines=(moved_line,), duration_estimate_seconds=15),
+                        *rest,
+                    ),
+                ),
+                *document.director_script.scenes[1:],
+            ),
+            expected_revision=document.revision,
+        )
+        manual_starts = {first_lines[0].id: 10.0, first_lines[1].id: 9.5}
+        document = await service.set_dialogue_timing(
+            segment_id=first.id,
+            starts=manual_starts,
+            duration_seconds=15,
+            expected_revision=document.revision,
+        )
+        document = await service.auto_calibrate_dialogue_timings(
+            expected_revision=document.revision
+        )
+        plan = {item.dialogue_line_id: item for item in store.read().dialogue_plan.items}
+        assert {line.id: plan[line.id].start_seconds for line in first_lines} == manual_starts
+        assert plan[moved_line.id].start_seconds == 0.5
+        assert [
+            seg.duration_estimate_seconds for seg in document.director_script.scenes[0].segments[:2]
+        ] == [15, 15]
 
     asyncio.run(run())
 

@@ -34,6 +34,176 @@ def image_update(doc, index=0):
     }
 
 
+def test_reference_image_replacement_preserves_manual_dialogue_timing_through_mcp(tmp_path):
+    store, service, doc, _ = asyncio.run(fixture(tmp_path))
+    service._registry.install(
+        provider_registry(
+            image_provider=RecordingProvider(
+                media_type="image/png", content=b"\x89PNG\r\n\x1a\nreplacement"
+            )
+        )._plugins["sample_image"]
+    )
+    caller = Caller(
+        "timing-agent",
+        "agent",
+        frozenset({doc.project_id}),
+        frozenset({"project.read", "project.mutate", "project.execute"}),
+        4102444800,
+        (),
+        True,
+    )
+    scene = doc.director_script.scenes[0]
+    segment = scene.segments[0]
+    starts = {
+        line.id: start
+        for line, start in zip(segment.dialogue_lines, (11.1, 10.9, 10.0), strict=True)
+    }
+    audio_selections = {
+        item.dialogue_line_id: item.selected_audio_asset_id for item in doc.dialogue_plan.items
+    }
+    boundary = doc.keyframe_plan.segments[0]
+    boundary_assets = {
+        frame.selected_asset_id
+        for frame in doc.keyframe_plan.keyframes
+        if frame.id in {boundary.start_keyframe_id, boundary.end_keyframe_id}
+    }
+    images = [
+        asset.id
+        for asset in doc.assets
+        if asset.media_type.startswith("image/") and asset.id not in boundary_assets
+    ][:3]
+    assert len(images) == 3
+
+    async def run(server):
+        async with Client(server) as client:
+
+            async def write(tool, key, **arguments):
+                result = await client.call_tool(
+                    tool,
+                    {
+                        "project_id": doc.project_id,
+                        "expected_revision": store.read().revision,
+                        "idempotency_key": key,
+                        **arguments,
+                    },
+                )
+                assert not result.is_error, result.structured_content
+
+            async def assert_timing():
+                current = store.read()
+                assert current.director_script.scenes[0].segments[0].duration_estimate_seconds == 15
+                assert {
+                    item.dialogue_line_id: item.start_seconds
+                    for item in current.dialogue_plan.items
+                    if item.dialogue_line_id in starts
+                } == starts
+                assert {
+                    item.dialogue_line_id: item.selected_audio_asset_id
+                    for item in current.dialogue_plan.items
+                } == audio_selections
+                read = await client.call_tool(
+                    "read_professional_workset",
+                    {
+                        "project_id": doc.project_id,
+                        "capability": "video_prompt",
+                        "scene_ids": [scene.id],
+                        "target_ids": [segment.id],
+                    },
+                )
+                assert not read.is_error, read.structured_content
+                timing = read.structured_content["data"]["core_facts"]["dialogue_timing"]
+                assert timing["ready"]
+                assert timing["duration_seconds"] == 15
+                assert {
+                    line["dialogue_line_id"]: line["start_seconds"] for line in timing["lines"]
+                } == starts
+
+            target = {"scene_ids": [scene.id], "segment_id": segment.id}
+            await write(
+                "set_dialogue_timing", "manual-timing", **target, starts=starts, duration_seconds=15
+            )
+            await assert_timing()
+            # 空对象通过 MCP 形状校验，由 Core 拒绝不完整的对白覆盖，不改项目。
+            before = store.path.read_bytes()
+            rejected = await client.call_tool(
+                "set_dialogue_timing",
+                {
+                    "project_id": doc.project_id,
+                    "expected_revision": store.read().revision,
+                    "idempotency_key": "empty-timing",
+                    **target,
+                    "starts": {},
+                    "duration_seconds": 15,
+                },
+            )
+            assert rejected.is_error
+            assert rejected.structured_content["error"]["origin"] != "mcp_schema"
+            assert store.path.read_bytes() == before
+            for index, asset_id in enumerate(images):
+                await write(
+                    "select_reference_image",
+                    f"initial-{index}",
+                    **target,
+                    slot_index=index,
+                    source="asset",
+                    source_id=asset_id,
+                    description=f"空间参考 {index}",
+                )
+                await assert_timing()
+            args = image_update(doc, 2)
+            args.pop("scope")
+            await write(
+                "save_reference_image_plan", "replacement-plan", scene_ids=[scene.id], **args
+            )
+            await assert_timing()
+            image = store.read().video_plan.segments[0].reference_images[0]
+            await write(
+                "generate_media", "replacement-generate", kind="reference_image", target_id=image.id
+            )
+            await assert_timing()
+            generation_id = store.read().generations[-1].id
+            for _ in range(3):
+                observed = await client.call_tool(
+                    "manage_generation",
+                    {
+                        "project_id": doc.project_id,
+                        "action": "wait",
+                        "generation_ids": [generation_id],
+                    },
+                )
+                assert not observed.is_error, observed.structured_content
+                await assert_timing()
+                if store.read().generations[-1].phase.value == "succeeded":
+                    break
+            assert store.read().generations[-1].phase.value == "succeeded"
+            await write(
+                "select_reference_image",
+                "replacement-select",
+                **target,
+                slot_index=2,
+                source="generation",
+                source_id=generation_id,
+            )
+            bindings = dict(store.read().video_plan.segments[0].recipe_inputs.bindings)[
+                "additional_images"
+            ]
+            assert [binding.asset_id for binding in bindings[:2]] == images[:2]
+            assert bindings[2].asset_id == store.read().generations[-1].output_asset_id
+            assert bindings[2].asset_id != images[2]
+            await assert_timing()
+            await write(
+                "select_reference_image",
+                "replacement-remove",
+                **target,
+                slot_index=2,
+                source="remove",
+            )
+            await assert_timing()
+
+    with endpoint(tmp_path, store, service, caller, full_api=True) as (server, _):
+        asyncio.run(run(server))
+
+
 def test_agent_can_discover_plan_and_generate_arbitrary_other_image_through_mcp(tmp_path):
     store, service, doc, _ = asyncio.run(fixture(tmp_path))
     service._registry.install(

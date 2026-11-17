@@ -755,7 +755,13 @@ class VideoRecipe(Request):
 class DialogueTiming(Request):
     scene_ids: Targets
     segment_id: ID
-    starts: dict[ID, Annotated[float, Field(ge=0, allow_inf_nan=False)]]
+    starts: dict[ID, Annotated[float, Field(ge=0, allow_inf_nan=False)]] = Field(
+        description=(
+            "逐句发声起点（秒）；键为 dialogue_line_id，键本身不含引号或空白；"
+            "必须覆盖该 Segment 全部对白。"
+        ),
+        json_schema_extra={"additionalProperties": False},
+    )
     duration_seconds: Annotated[float, Field(ge=0.2, allow_inf_nan=False)]
 
 

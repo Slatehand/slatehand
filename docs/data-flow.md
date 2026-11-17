@@ -88,7 +88,7 @@ flowchart LR
     route -- 否 --> design[voice.design<br/>角色卡或临时说话者音色描述]
     clone & design --> candidates[对白 WAV 候选]
     candidates --> select[人类选择]
-    select --> timing[按剧本顺序设置发声起点]
+    select --> timing[自由设置发声起点 · 允许重叠]
     timing --> min[最晚结束时间<br/>start + WAV 真实时长]
     min --> duration[Segment 时长 ≥ 最晚结束时间<br/>余量由镜头与情感节奏决定]
     duration --> ref2va[对白 WAV 进入多参考视频 recipe]
@@ -97,7 +97,9 @@ flowchart LR
 - 角色卡已经选择参考音色时只能走语音克隆，并要求该参考 WAV 有完整同语言文字稿；不会退回 Voice Design。
 - 没有参考音色的角色，以及用 `speaker_label` 表示的临时说话者/龙套，必须提供音色描述并走 Voice Design；提交的描述是本嗓描述后接该句 `delivery`（本句表演覆盖描述里的朗读状态），克隆路由则把 `delivery` 作为表演指示参数。
 - 选中任一句新的对白 WAV 或取消某句已选 WAV，都会清除该 Segment 全部对白的旧发声起点，并失效该 Segment 已选视频、超分与装配；随后必须按新的真实时长重新校准。
-- 发声起点必须按剧本顺序排列且音频不可重叠。Core 拒绝短于最后一句对白结束时间的 Segment；Agent 可在此下限之外增加停顿、表演和镜头余量。首句前、末句后各 0.5 秒的呼吸余量只是视频工作集里的软提示（`breathing_hints`），不拒绝写入或生成。
+- Segment 其他图片的规划、生成、选用与移除保留已保存的对白起点、视频时长与对白 WAV 选择；选图变化只失效依赖图片的已选视频、超分与装配。
+- 每句发声起点是非负有限秒数，可自由调整、重叠或与对白文本列表顺序不同。Core 按所有对白的最晚结束时间检查视频边界，任一句 WAV 都必须完整落在 Segment 内。首个开口前、最后一个声音结束后各 0.5 秒的呼吸余量只是视频工作集里的软提示（`breathing_hints`），不拒绝写入或生成。
+- 单独修改视频时长时保留已有对白起点；缩短后放不下任一句对白则整次拒绝，不清空或自动挪动起点。自动校准只为已选齐 WAV 且未设置时序的 Segment 补基础起点，保留已有时序和更长的视频时长。
 
 ## Keyframe 输入编译
 

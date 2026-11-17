@@ -80,6 +80,13 @@
 .dialogue-dismiss-confirm span { flex-basis: 100%; color: var(--muted); font-size: 10px; }
 .dialogue-timing-actions { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .dialogue-timing-actions p { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.dialogue-timing-editor { margin-top: 18px; }
+.dialogue-timing-editor fieldset { display: flex; flex-wrap: wrap; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.dialogue-timing-editor legend { font-weight: 600; }
+.dialogue-timing-editor p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
+.dialogue-timing-editor label { display: flex; flex: 1 1 160px; flex-direction: column; gap: 6px; font-size: 12px; }
+.dialogue-timing-editor input { width: 100%; box-sizing: border-box; }
+.dialogue-timing-editor small { color: var(--muted); }
 .story-reader-intro { color: var(--muted); }
 .story-reader-chapter, .story-reader-children button, .story-reader-segments button { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 20px 0; color: inherit; }
 .story-reader-chapter:hover, .story-reader-children button:hover { color: var(--red); }

@@ -234,7 +234,7 @@ flowchart LR
 | `selected_audio_asset_id` | 人类从该句成功、未隐藏的候选中选定的 WAV；生成后输入变化只作软提示 |
 | `start_seconds` | 该 WAV 在 Segment 内的真实发声起点；任一句重新选音频或正文/音色变化时整段清空 |
 
-Core 按剧本顺序校验 WAV 不重叠，并要求 `Segment.duration_estimate_seconds` 不短于最后一句对白结束时间。对白音频全部选择且
+Core 允许 WAV 重叠与任意发声顺序，起点须为非负有限秒数，并要求 `Segment.duration_estimate_seconds` 不短于所有对白的最晚结束时间。仅调整时长保留起点，缩短到任一句音频结束前则拒绝写入。对白音频全部选择且
 时序校准后，Core 才允许生成该 Segment 视频。脚本回改会按稳定 DialogueLine ID 重建计划：完整原句即使被分配到新的
 Segment 也保留生成候选与已选音频，只清空发声起点；正文、说话者、音色描述发生变化时才清除该句的选择与时序。某句对白离开原 Segment（拆分、移句或删除）后，
 该 Segment 视频输入簿各 recipe 中属于这句对白的 TTS 参考音频自动解绑，其它手动参考保持原样。

@@ -36,6 +36,87 @@ class RecordingBridge:
         return 200, {"data": {"accepted": True}}
 
 
+@pytest.mark.parametrize("flat", [False, True])
+@pytest.mark.parametrize(
+    "starts",
+    [{}, {"78c90e98e0404507897dea21fc91e9a6": 11.1}, {"a" * 32: 0, "b" * 32: 2.5}],
+)
+def test_dialogue_timing_dictionary_keys_reach_core_unchanged(starts, flat):
+    async def run():
+        bridge = RecordingBridge()
+        arguments = {
+            **WRITE_BASE,
+            "scene_ids": [SCENE_ID],
+            "segment_id": SEGMENT_ID,
+            "starts": starts,
+            "duration_seconds": 15,
+        }
+        async with Client(create_server(bridge, flat_tool_schemas=flat)) as client:
+            tools = (await client.list_tools()).tools
+            schema = next(tool.input_schema for tool in tools if tool.name == "set_dialogue_timing")
+            Draft202012Validator(schema).validate(arguments)
+            result = await client.call_tool("set_dialogue_timing", arguments)
+        assert not result.is_error, result.structured_content
+        assert bridge.calls == [
+            (
+                WRITE_BASE["project_id"],
+                "dialogue.set_timing",
+                WRITE_BASE["expected_revision"],
+                WRITE_BASE["idempotency_key"],
+                {
+                    "scope": {"scene_ids": [SCENE_ID]},
+                    "segment_id": SEGMENT_ID,
+                    "starts": starts,
+                    "duration_seconds": 15.0,
+                },
+            )
+        ]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "starts, reason",
+    [
+        ({'"78c90e98e0404507897dea21fc91e9a6"': 11.1}, "invalid_id"),
+        ({"A" * 32: 0.5}, "invalid_id"),
+        ({" " + "a" * 32: 0.5}, "invalid_id"),
+        ({"a" * 31: 0.5}, "invalid_id"),
+        ({"a" * 32: -0.5}, "out_of_range"),
+        ({"a" * 32: "0.5"}, "wrong_type"),
+        ({"a" * 32: True}, "wrong_type"),
+    ],
+)
+def test_dialogue_timing_schema_and_runtime_reject_invalid_keys_and_values(starts, reason):
+    async def run():
+        bridge = RecordingBridge()
+        arguments = {
+            **WRITE_BASE,
+            "scene_ids": [SCENE_ID],
+            "segment_id": SEGMENT_ID,
+            "starts": starts,
+            "duration_seconds": 15,
+        }
+        async with Client(create_server(bridge)) as client:
+            tools = (await client.list_tools()).tools
+            schema = next(tool.input_schema for tool in tools if tool.name == "set_dialogue_timing")
+            assert not Draft202012Validator(schema).is_valid(arguments)
+            result = await client.call_tool("set_dialogue_timing", arguments)
+        assert result.is_error
+        error = result.structured_content["error"]
+        assert error["origin"] == "mcp_schema"
+        assert error["state_changed"] is False
+        (issue,) = error["issues"]
+        assert issue["path"] == f"starts.{next(iter(starts))}"
+        assert issue["reason"] == reason
+        if reason == "invalid_id":
+            assert "字典键" in issue["message"]
+            assert "引号" in issue["message"]
+        assert bridge.calls == []
+
+    asyncio.run(run())
+
+
 def test_every_public_tool_schema_is_draft_2020_12_valid_and_conditionals_are_explicit():
     async def run():
         async with Client(create_server(RecordingBridge())) as client:

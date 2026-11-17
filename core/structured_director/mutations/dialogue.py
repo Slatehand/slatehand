@@ -200,7 +200,7 @@ def set_dialogue_timing(
         raise ValueError("对白时序必须且只能覆盖该 Segment 的全部 DialogueLine。")
     plan_by_id = {item.dialogue_line_id: item for item in plan.items}
     asset_by_id = {item.id: item for item in document.assets}
-    previous_end = 0.0
+    maximum_end = 0.0
     normalized: dict[str, float] = {}
     for line_id in line_ids:
         assert line_id is not None
@@ -217,12 +217,10 @@ def set_dialogue_timing(
         ):
             raise ValueError("对白发声起点必须是非负有限数值。")
         start = float(start)
-        if start + 1e-6 < previous_end:
-            raise ValueError("对白音频不能重叠；请按剧本顺序安排发声起点。")
-        previous_end = start + (asset.duration_seconds or 0.0)
+        maximum_end = max(maximum_end, start + (asset.duration_seconds or 0.0))
         normalized[line_id] = start
-    if duration_seconds + 1e-6 < previous_end:
-        raise ValueError(f"Segment 时长不能短于最后一句对白结束时间 {previous_end:.3f} 秒。")
+    if duration_seconds + 1e-6 < maximum_end:
+        raise ValueError(f"Segment 时长不能短于对白最晚结束时间 {maximum_end:.3f} 秒。")
     timed_plan = replace(
         plan,
         items=tuple(
@@ -256,7 +254,7 @@ def set_dialogue_timing(
 def auto_calibrate_dialogue_timings(
     document: StructuredDirectorDocument,
 ) -> StructuredDirectorDocument:
-    """一次性校准所有已选齐 TTS WAV 的 Segment；未选齐的 Segment 保持不变。"""
+    """为已选齐 WAV 且尚未设置时序的 Segment 补基础起点；保留已有时序与更长时长。"""
     plan = document.dialogue_plan
     script = document.director_script
     if not document.is_reviewing or script is None or plan is None:
@@ -265,6 +263,7 @@ def auto_calibrate_dialogue_timings(
     asset_by_id = {item.id: item for item in document.assets}
     starts_by_line: dict[str, float] = {}
     durations_by_segment: dict[str, float] = {}
+    has_selected_segment = False
     for scene in script.scenes:
         for segment in scene.segments:
             if not segment.dialogue_lines:
@@ -282,25 +281,21 @@ def auto_calibrate_dialogue_timings(
                 durations.append(asset.duration_seconds)
             if len(durations) != len(segment.dialogue_lines):
                 continue
+            has_selected_segment = True
+            if all(
+                plan_by_id[line.id].start_seconds is not None for line in segment.dialogue_lines
+            ):
+                continue
             cursor = 0.5
             for line, duration in zip(segment.dialogue_lines, durations, strict=True):
                 assert line.id is not None
                 starts_by_line[line.id] = cursor
                 cursor += duration + 0.25
-            durations_by_segment[segment.id] = max(0.2, cursor + 0.25)
+            durations_by_segment[segment.id] = max(segment.duration_estimate_seconds, cursor + 0.25)
     if not durations_by_segment:
+        if has_selected_segment:
+            return document
         raise ValueError("当前没有已选齐全部对白 TTS 的 Segment。")
-    current_items = {item.dialogue_line_id: item for item in plan.items}
-    current_segments = {
-        segment.id: segment for scene in script.scenes for segment in scene.segments
-    }
-    if all(
-        current_items[line_id].start_seconds == start for line_id, start in starts_by_line.items()
-    ) and all(
-        current_segments[segment_id].duration_estimate_seconds == duration
-        for segment_id, duration in durations_by_segment.items()
-    ):
-        return document
     timed_plan = replace(
         plan,
         items=tuple(

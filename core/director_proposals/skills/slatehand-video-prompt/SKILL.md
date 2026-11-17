@@ -78,6 +78,7 @@ true 时（`context.duration_seconds` 超过插件声明的 `soft_duration_limit
 
 有对白时只认工作集 `dialogue_timing` 的真实 WAV 时序；未就绪不猜秒数。真实结束时间超过 Segment 时长时建议
 加长或拆分，不删减、改写或加速台词。
+逐句起点可随时经 `set_dialogue_timing` 调整，允许抢话、重叠及与文本列表不同的发声顺序；每句起点须非负，且起点加真实 WAV 时长不得超出视频时长。按镜头需要安排，不把自动校准产生的基础起点当成固定限制。
 
 设定对白时序与 Segment 时长时，首句开口前、末句结束后各留至少 `breathing_seconds`（0.5 秒），否则相邻 Segment
 硬切后两段对白会贴在一起。`dialogue_timing` 的 `lead_seconds` / `tail_seconds` 给出当前余量（段尾按插件实际输出时长计算），
