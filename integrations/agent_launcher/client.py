@@ -91,14 +91,30 @@ def codex_command():
     ]
 
 
+AGY_HOME = Path("/agy")
+# 含对象数组的写工具使用原生声明，避开 call_mcp_tool 无内部 schema 的 Arguments。
+AGY_EAGER_TOOLS = (
+    "edit_keyframes",
+    "edit_locations",
+    "edit_references",
+    "edit_script",
+    "save_reference_image_plan",
+    "save_video_prompt",
+    "submit_proposal",
+)
+
+
 def agy_command():
-    # AGY 的独立 HOME 只保存容器内登录态；MCP 配置由固定参数合并，不导入宿主配置。
-    os.environ["HOME"] = "/agy"
-    subprocess.run(
-        ["agy", "mcp", "add", "slatehand", sys.executable, "/app/client.py", "mcp"],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
+    os.environ["HOME"] = str(AGY_HOME)
+    path = AGY_HOME / ".gemini/config/mcp_config.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    config = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    config.setdefault("mcpServers", {})["slatehand"] = {
+        "command": sys.executable,
+        "args": ["/app/client.py", "mcp"],
+        "tools": {name: {"eager": True} for name in AGY_EAGER_TOOLS},
+    }
+    write_workspace_file(path, json.dumps(config, ensure_ascii=False, indent=2) + "\n", 0o600)
     return ["agy", "--dangerously-skip-permissions"]
 
 

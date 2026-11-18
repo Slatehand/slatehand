@@ -83,6 +83,11 @@ Slatehand stdio MCP 合并进容器配置，不导入宿主的插件、MCP、会
 容器 CLI 内完成登录，后续刷新仅保留在隔离配置卷。AGY 不接收初始 prompt、模型或执行模式参数，仍由用户
 在原生 CLI 中选择模型并下达任务。隔离网络、当前项目 Core 白名单和人类审核边界与 Pi/Codex 相同。
 
+AGY 启动时将接收对象数组的工具配置为 [eager 原生工具](https://antigravity.google/docs/mcp?tab=cli#tool-loading-lazy-vs-eager)。
+其中包括四个批量编辑工具、`save_reference_image_plan`、`save_video_prompt` 和 `submit_proposal`。
+AGY 直接按各工具的 schema 生成参数，避开懒加载入口 `call_mcp_tool` 的通用 `Arguments`。
+其余工具沿用 AGY 的懒加载。已有会话需要退出 AGY，再通过原项目连接命令启动并恢复会话，启动器才会写入此配置。
+
 Docker 回归：`SLATEHAND_DOCKER_TESTS=1 .venv/bin/python -m pytest tests/test_agent_onboarding_docker.py` 覆盖全部 Agent 空闲启动、原生 MCP 配置、stdio 实际读取，以及宿主与非授权 Core 路由拒绝；只使用合成身份，不验证真实账号登录或模型推理。
 
 ## Kimi Code

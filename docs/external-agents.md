@@ -171,6 +171,8 @@ MCP 约定：
 - 工具默认以顶层 `oneOf` 发布条件参数。Claude Code 会静默丢弃带顶层 `oneOf` 的工具，因此启动器给它的 adapter 加
   `--flat-tool-schemas`：去掉顶层 `oneOf`，裸 object 字段（`submit_proposal.payload`）取各分支完整字段，分支条件写入工具说明。
   只改变发布形状，运行时参数矩阵与 `invalid_arguments` 不变；其它 Agent 仍收到逐字节基线。
+- Antigravity CLI 启动器将接收对象数组的工具注册为 eager 工具，AGY 按各自的 schema 直接调用。其它工具沿用懒加载。
+  已打开的 AGY 会话可退出后通过原项目连接命令重新启动，再恢复会话。
 - 读工具的幂等键由 MCP 生成，不暴露给模型；写工具的 `idempotency_key` 必须由模型提供，不同动作不得复用。
 - 为兼容会把可选字段补成 null 的原生连接器，MCP 把非当前 action 的 null 归一为省略；任何非 null 越界值仍拒绝。
 - 大型 submit 可将完整 object JSON 写入 Agent 自己的固定 `/workspace/proposals/<request_id>.json`，调用时只传

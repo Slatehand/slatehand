@@ -568,19 +568,39 @@ def test_codex_command_has_native_mcp_without_task_or_secret():
     assert not any("token" in item or "--model" in item or item == "exec" for item in command)
 
 
-def test_agy_command_adds_only_native_mcp_without_task_or_model(monkeypatch):
+def test_agy_command_registers_object_array_tools_eagerly(monkeypatch, tmp_path):
     from integrations.agent_launcher.client import agy_command
 
-    calls = []
+    profile = tmp_path / "agy"
     monkeypatch.setenv("HOME", "/synthetic-home")
-    monkeypatch.setattr(
-        "integrations.agent_launcher.client.subprocess.run",
-        lambda args, **kwargs: calls.append((args, kwargs)),
-    )
+    monkeypatch.setattr("integrations.agent_launcher.client.AGY_HOME", profile)
+    path = profile / ".gemini/config/mcp_config.json"
+    old_servers = {"other": {"command": "other"}, "slatehand": {"command": "old"}}
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"mcpServers": old_servers}), encoding="utf-8")
+
     assert agy_command() == ["agy", "--dangerously-skip-permissions"]
-    assert calls[0][0][0:4] == ["agy", "mcp", "add", "slatehand"]
-    assert calls[0][0][-2:] == ["/app/client.py", "mcp"]
-    assert not any("--model" in value or "token" in value for value in calls[0][0])
+    servers = json.loads(path.read_text())["mcpServers"]
+    eager_tools = {
+        "edit_keyframes",
+        "edit_locations",
+        "edit_references",
+        "edit_script",
+        "save_reference_image_plan",
+        "save_video_prompt",
+        "submit_proposal",
+    }
+    assert servers == {
+        "other": old_servers["other"],
+        "slatehand": {
+            "command": sys.executable,
+            "args": ["/app/client.py", "mcp"],
+            "tools": dict.fromkeys(eager_tools, {"eager": True}),
+        },
+    }
+    assert path.stat().st_mode & 0o777 == 0o600
+    agy_command()
+    assert json.loads(path.read_text())["mcpServers"] == servers
 
 
 def test_kimi_command_writes_only_native_mcp_and_uses_auto_mode(monkeypatch, tmp_path):
