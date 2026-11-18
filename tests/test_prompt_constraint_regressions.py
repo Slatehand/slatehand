@@ -245,7 +245,8 @@ def test_keyframe_planner_derives_framing_and_frame_choice_from_the_beat():
     assert "双帧不是更保险的选择" in planner
     assert "一帧一个重心" in design
     assert "信息覆盖不等于把所有信息塞进一张图" in design
-    assert "不设全片默认景别" in design  # 收紧景别不能变成新的机械默认值
+    assert "逐 Shot 优先考虑中景、中近景" in planner
+    assert "确需同框时，保留全景或远景" in design
 
 
 def test_every_keyframe_decision_starts_with_action_state_and_continuity():
