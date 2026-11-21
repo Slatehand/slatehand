@@ -242,7 +242,8 @@ def test_keyframe_planner_derives_framing_and_frame_choice_from_the_beat():
     assert "update_shot_fields" in planner and "冻结的工作集过期" in planner
     assert "自行建立完整空间" not in planner
     assert "不要为了“有首帧”把结果提前画进首帧" in planner
-    assert "双帧不是更保险的选择" in planner
+    assert "两端各有独立且必要的约束时才启用" in planner
+    assert "避免补间形变" in planner
     assert "一帧一个重心" in design
     assert "信息覆盖不等于把所有信息塞进一张图" in design
     assert "逐 Shot 优先考虑中景、中近景" in planner
@@ -250,24 +251,28 @@ def test_keyframe_planner_derives_framing_and_frame_choice_from_the_beat():
 
 
 def test_every_keyframe_decision_starts_with_action_state_and_continuity():
-    """首帧启动前、尾帧已结束、进行中不进首尾槽位；连续镜头优先共享或抽帧，且规则排在最前。"""
+    """优先其他图片，必要时才定帧；动作时机与连续关系的判断排在最前。"""
     resources = {r["name"]: r["text"] for r in read_contract("keyframe")["resources"]}
     planner = resources["SKILL.md"]
     # Agent 可能只读开头几千字符，三问必须排在规则正文之前。
     head = planner[: planner.index("## 定位与上游")]
     for required in (
         "每张帧先答三问",
+        "每个 Segment 从首尾帧都关闭开始",
         "启动前",
         "进行中",
         "已结束",
         "动词序列",
         "start_extraction_suggested=true",
-        "“跳切更有冲击力”不是理由",
+        "连续且确需首帧时",
+        "连续的戏沿原脚本衔接",
         "Core 没有中间槽位",
+        "有必要提供画面参考就用其他图片，否则交给视频演",
         "在回复里每帧一行",
     ):
         assert required in head, required
     assert len(head) < 2000
+    assert planner.index("`none`（默认）") < planner.index("- `start`：")
 
     sequence = resources["production/slatehand-keyframe-sequence/SKILL.md"]
     for required in ("| 动作状态 |", "| 状态错位 |", "重写视频提示词开头", "上一段改选视频后重抽"):
@@ -287,7 +292,8 @@ def test_every_keyframe_decision_starts_with_action_state_and_continuity():
     launcher = (
         Path(__file__).resolve().parents[1] / "integrations/agent_launcher/PROMPT.md"
     ).read_text()
-    assert "每帧三问" in launcher and "进行中的画面不进首尾槽位" in launcher
+    assert "每帧三问" in launcher
+    assert "关键帧规划默认关闭首尾帧（`none`），优先用 Ref2VA 的其他图片" in launcher
 
 
 def test_image_prompt_skill_inherits_scene_reference_by_framing():

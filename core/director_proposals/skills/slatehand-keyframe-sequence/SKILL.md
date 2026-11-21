@@ -33,7 +33,7 @@ description: 连续生产多个 Segment 的关键帧：先打样确立基准，�
 - 同机位仅状态变化时，尾帧正文只写变化增量；机位或景别变化时，尾帧须显式要求按新机位重排构图、透视与遮挡，只保留身份、服装、道具状态与光线。
 - 尾帧出图后与首帧并排比对发丝、服装褶皱、陈设与光影；补间会放大细微差异。重做仍对不上时用 `edit_keyframes` 的 `set_activation` 关闭一端退回单帧并说明。
 
-相邻 Segment 连续且无共享边界时，后段首帧优先抽上一段视频真实末帧，先告知用户等上一段视频选定后再抽，不抢先独立生图。`extraction_suggested=true` 的帧批量生成会自动跳过它们，勿用单帧生成绕过；漏标时用 `update_frame_fields.fields.extraction_suggested=true` 补标。
+相邻 Segment 连续、后段已启用首帧且无共享边界时，首帧优先从上一段已选视频抽取交接画面。`extraction_suggested=true` 的帧等待上一段视频选定后再抽取，批量生成会自动跳过它们；漏标时用 `update_frame_fields.fields.extraction_suggested=true` 补标。
 
 抽帧流程：先 `read_details(kind="keyframe", ids=[...])` 看 `start_frame_extraction`。`state="ready"` 时调 `generate_media(kind="frame_extraction", target_id=<首帧 Keyframe ID>)`（默认抽倒数第 5 帧，可传 `frame_index`）；`waiting_source_video` 时请用户先选定上一段视频；`shared_boundary` 不抽帧。`wait` 后在 `list_candidates(kind="keyframe_image")` 看图审核并用 `select_keyframe_candidate(source="generation")` 选入；用户明确要求直接生成时才单独生成。抽帧须同步做到：
 - **挑帧**：确保无运动模糊且处于本段启动前，否则用 `frame_index` 往前挑并说明重叠代价；
@@ -80,7 +80,7 @@ description: 连续生产多个 Segment 的关键帧：先打样确立基准，�
 | 提示词歧义 | 反复误读站位、左右手或情绪强度 | 只改歧义句再生成，不整段推翻 |
 | 输入冲突 | 参考图矛盾或过多稀释身份空间 | 删减参考，每张图只留单一职责 |
 | 能力上限 | 改写重试仍做不出该构图动作 | 停止并给替代构图或交人工修图 |
-| 状态错位 | 首帧画成中途或结果、尾帧未演完、连续镜独立生图 | 按 planner 开头三问换位置或换来源，必要时退回启动前重画 |
+| 状态错位 | 首帧画成中途或结果、尾帧未演完、连续镜独立生图 | 按 planner 开头三问重新判断端点是否必要，进行中的画面优先用作其他图片。仍需定帧时按真实起止状态选择画面和来源 |
 | 计划错误 | 多帧共犯景别过远、结果提前或照搬参考构图 | 停止提交，统一修完所有受影响帧（含未生成帧）再继续；涉脚本构图时按 planner 写回 |
 
 - **禁止叠否定补丁治标**：候选图出现肢体或马匹畸变、结构粘连、群像杂乱时，绝不在原提示词里追加“严禁缺失”“绝无扭曲”之类的括号解剖禁令——根因往往是单帧塞入过多前景主体、无依据切超广角或姿态落在动作中途。应退回动作启动前的静止站姿、把次要人群推入远景虚化并精简正文；同时先消除工作集 `prompt_problems` 中的格式软提示。
