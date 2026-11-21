@@ -625,7 +625,6 @@ body.is-resizing-agent-sidebar { cursor: ew-resize; user-select: none; }
 .video-reference-image-card textarea { box-sizing: border-box; width: 100%; min-height: 76px; }
 .video-reference-image-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .video-reference-image-actions button { font-size: 13px; padding: 8px 10px; }
-.reference-image-plan-dialog { max-width: 780px; overflow-y: auto; max-height: 90vh; }
 .reference-image-plan-dialog > label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
 .reference-image-plan-dialog textarea { width: 100%; box-sizing: border-box; min-height: 100px; }
 .reference-image-plan-thumbnails { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin: 12px 0; }
@@ -835,6 +834,7 @@ body.is-resizing-agent-sidebar { cursor: ew-resize; user-select: none; }
 .scene-asset-picker-dialog > header > div { flex: 1 1 auto; min-width: 0; }
 .scene-asset-picker-dialog > header > button { flex: none; white-space: nowrap; }
 .scene-asset-picker-dialog h2 { margin: 4px 0 0; }
+.reference-image-plan-dialog { max-width: 780px; overflow: auto; overscroll-behavior: contain; }
 /* 资产候选可能远超一屏：标题与关闭按钮固定，只有候选列表滚动。 */
 .scene-asset-picker-scroll { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 10px; margin-top: 16px; overflow: auto; overscroll-behavior: contain; }
 .scene-asset-picker-scroll > .muted-copy { margin: 0; padding: 0 6px 6px 0; }
