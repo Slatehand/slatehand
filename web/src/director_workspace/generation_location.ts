@@ -4,8 +4,9 @@ import type { StoryTarget } from "../api/projection";
 export interface GenerationLocation {
   /** 任务所在位置的可读描述，如“场景 2 · 片段 3”。 */
   place: string;
-  /** 可在故事导航中直接打开的位置；不属于 Scene/Segment 的任务为 null。 */
+  /** 可在故事导航中直接打开的位置。 */
   target: StoryTarget | null;
+  unavailableMessage?: string;
 }
 
 const kindLabels: Record<ReferenceGeneration["kind"], string> = {
@@ -34,6 +35,18 @@ const kindLabels: Record<ReferenceGeneration["kind"], string> = {
 
 export function generationKindLabel(kind: ReferenceGeneration["kind"]) {
   return kindLabels[kind];
+}
+
+export function generationPhaseLabel(phase: ReferenceGeneration["phase"]): string {
+  return {
+    submitting: "正在提交",
+    submission_uncertain: "提交结果未知",
+    queued: "排队中",
+    running: "生成中",
+    succeeded: "候选已生成",
+    failed: "生成失败",
+    cancelled: "已取消",
+  }[phase];
 }
 
 /** 只按当前快照中的 target 关系定位任务所属 Scene / Segment，不推断其它业务规则。 */
@@ -84,6 +97,10 @@ export function locateGeneration(
       break;
     case "keyframe_image":
     case "video_frame": {
+      // 资产库抽帧以源视频为目标，片段抽帧以关键帧为目标。
+      if (generation.kind === "video_frame" && generation.input_asset_ids[0] === id) {
+        return { place: "资产库", target: null };
+      }
       const segmentId = keyframeSegmentId(id);
       located = segmentId
         ? segmentLocation((segment) => segment.id === segmentId)
@@ -127,5 +144,9 @@ export function locateGeneration(
     default:
       return { place: "资产库", target: null };
   }
-  return located ?? { place: "已不在当前脚本中", target: null };
+  return located ?? {
+    place: "页面已删除",
+    target: null,
+    unavailableMessage: "该任务对应的页面已删除，无法跳转。",
+  };
 }

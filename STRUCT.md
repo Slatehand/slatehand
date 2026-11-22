@@ -456,7 +456,7 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `src/director_workspace/RecipeInputsControl.tsx`、`video.tsx`：共享受保护的视频 recipe 草稿，以及 Segment 视频卡（模式、参考素材、候选、超分、抽帧）；首尾帧区与视频卡原子编辑同一份 recipe 输入簿。
 - `src/director_workspace/SceneMedia.tsx`：Scene Animatic 与 Scene 成片。
 - `src/director_workspace/final.tsx`：全片装配与 Approval。
-- `src/director_workspace/generation.tsx`：Generation 候选、状态文案与采样计时。
+- `src/director_workspace/generation.tsx`：Generation 候选与采样计时；`generation_location.ts` 提供任务类型、状态文案与故事导航目标。
 - `src/director_workspace/shared.tsx`：共用组件（选图/选音频/选视频弹窗、抽帧弹窗、全图查看等）。
 - `src/director_workspace/ConsistencyNotice.tsx`、`consistency.ts`：人工保存后的一致性提醒。
 - `src/director_workspace/consistency_instruction.ts`：生成的一致性规则文本，勿手改。

@@ -11,12 +11,15 @@ import type {
   ProjectAsset,
   ReferenceGeneration,
 } from "../api";
+import { generationPhaseLabel } from "./generation_location";
 
 import {
   GenerationCandidateList,
   assetById,
   imageAssetName,
 } from "./shared";
+
+export { generationPhaseLabel };
 
 export function GenerationCandidates({
   generations, assets, media, busy, onAttach, onCancel, onDismiss,
@@ -141,21 +144,6 @@ export function GenerationCandidates({
     </div>
   );
 }
-
-
-
-export function generationPhaseLabel(phase: ReferenceGeneration["phase"]): string {
-  return {
-    submitting: "正在提交",
-    submission_uncertain: "提交结果未知",
-    queued: "排队中",
-    running: "生成中",
-    succeeded: "候选已生成",
-    failed: "生成失败",
-    cancelled: "已取消",
-  }[phase];
-}
-
 
 export interface SamplingTelemetry {
   generationId: string;

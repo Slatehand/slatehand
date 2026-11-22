@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   projectApi,
   structuredDirectorApi,
@@ -56,6 +57,7 @@ import {
 import { useSnapshotScheduler } from "./director_workspace/useSnapshotScheduler";
 import {
   generationKindLabel,
+  generationPhaseLabel,
   locateGeneration,
 } from "./director_workspace/generation_location";
 import type { StoryTarget } from "./api/projection";
@@ -1194,6 +1196,7 @@ export function App() {
           ) : null}
           {structuredSnapshot !== null ? (
             <GenerationProgress
+              key={selectedProject?.id}
               snapshot={structuredSnapshot}
               onNavigate={(target) =>
                 setStoryNavigationRequest((current) => ({
@@ -1768,6 +1771,7 @@ function GenerationProgress({
   const [openCategory, setOpenCategory] = useState<GenerationCategory | null>(
     null,
   );
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
   useEscapeDismiss(
     container,
@@ -1787,15 +1791,18 @@ function GenerationProgress({
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [openCategory]);
   const progress = summarizeGenerationProgress(snapshot.generations);
-  const activeItems =
+  // Core 按创建顺序追加 Generation，状态更新保留原位置。
+  const recentItems =
     openCategory === null
       ? []
-      : snapshot.generations.filter(
-          (generation) =>
-            !generation.dismissed &&
-            generationStatus(generation) === "active" &&
-            generationCategory(generation) === openCategory,
-        );
+      : snapshot.generations
+          .filter(
+            (generation) =>
+              !generation.dismissed &&
+              generationCategory(generation) === openCategory,
+          )
+          .slice(-10)
+          .reverse();
   return (
     <div
       className="generation-progress"
@@ -1812,56 +1819,62 @@ function GenerationProgress({
             {item.failed > 0 ? ` · 失败 ${item.failed}` : ""}
           </>
         );
-        return item.active > 0 ? (
+        const title = `${label}：共 ${item.total} 次尝试`;
+        return item.total > 0 ? (
           <button
             key={category}
             type="button"
-            title={`${label}：共 ${item.total} 次尝试，点击查看进行中的任务`}
+            title={title}
             aria-expanded={openCategory === category}
             aria-controls="generation-progress-list"
-            onClick={() =>
-              setOpenCategory(openCategory === category ? null : category)
-            }
+            onClick={() => {
+              setNavigationError(null);
+              setOpenCategory(openCategory === category ? null : category);
+            }}
           >
             {content}
           </button>
         ) : (
-          <span key={category} title={`${label}：共 ${item.total} 次尝试`}>
+          <span key={category} title={title}>
             {content}
           </span>
         );
       })}
-      {openCategory !== null && activeItems.length > 0 ? (
+      {openCategory !== null && recentItems.length > 0 ? (
         <ul
           id="generation-progress-list"
           className="generation-progress-list"
-          aria-label={`进行中的${generationCategoryLabels[openCategory]}任务`}
+          aria-label={`最近的${generationCategoryLabels[openCategory]}任务`}
         >
-          {activeItems.map((generation) => {
-            const location = locateGeneration(snapshot, generation);
-            const target = location.target;
+          {recentItems.map((generation) => {
+            const { place, target, unavailableMessage } = locateGeneration(
+              snapshot,
+              generation,
+            );
+            const disabled = target === null && unavailableMessage === undefined;
             return (
               <li key={generation.id}>
                 <button
                   type="button"
-                  disabled={target === null}
+                  disabled={disabled}
                   title={
-                    target === null
-                      ? "该任务不属于具体 Scene 或 Segment"
-                      : undefined
+                    disabled ? "该任务不属于具体 Scene 或 Segment" : undefined
                   }
                   onClick={() => {
-                    if (target === null) return;
                     setOpenCategory(null);
-                    onNavigate(target);
+                    if (target !== null) onNavigate(target);
+                    else setNavigationError(unavailableMessage ?? null);
                   }}
                 >
-                  <span>{location.place}</span>
+                  <span>{place}</span>
                   <small>
                     {generationKindLabel(generation.kind)}
                     {generation.language ? ` · ${generation.language}` : ""}
                     {" · "}
-                    {generationPhaseLabel(generation)}
+                    {generationPhaseLabel(generation.phase)}
+                    {generation.phase === "running" && generation.progress > 0
+                      ? ` ${Math.round(generation.progress * 100)}%`
+                      : ""}
                   </small>
                 </button>
               </li>
@@ -1869,15 +1882,17 @@ function GenerationProgress({
           })}
         </ul>
       ) : null}
+      {navigationError !== null
+        ? createPortal(
+            <FloatingErrorNotice
+              message={navigationError}
+              onDismiss={() => setNavigationError(null)}
+            />,
+            document.body,
+          )
+        : null}
     </div>
   );
-}
-function generationPhaseLabel(generation: ReferenceGeneration) {
-  if (generation.phase === "running")
-    return generation.progress > 0
-      ? `生成中 ${Math.round(generation.progress * 100)}%`
-      : "生成中";
-  return generation.phase === "queued" ? "排队中" : "正在提交";
 }
 function generationCategory(
   generation: ReferenceGeneration,

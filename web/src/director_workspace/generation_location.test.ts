@@ -28,8 +28,8 @@ const snapshot = {
     segments: [{ segment_id: "seg-b2", reference_images: [{ id: "ref-1" }] }],
   },
 } as unknown as StructuredDirectorSnapshot;
-const generation = (kind: ReferenceGeneration["kind"], targetId: string) =>
-  ({ kind, target_id: targetId }) as ReferenceGeneration;
+const generation = (kind: ReferenceGeneration["kind"], targetId: string, inputAssetIds: string[] = []) =>
+  ({ kind, target_id: targetId, input_asset_ids: inputAssetIds }) as ReferenceGeneration;
 
 describe("locateGeneration", () => {
   it.each([
@@ -56,17 +56,24 @@ describe("locateGeneration", () => {
     });
   });
 
-  it("不属于 Scene/Segment 或已从脚本移除的任务不可导航", () => {
+  it("不属于 Scene/Segment 的任务保留原有位置标签", () => {
     expect(locateGeneration(snapshot, generation("location_image", "x"))).toEqual({ place: "地点库", target: null });
     expect(locateGeneration(snapshot, generation("character_look_sheet", "x"))).toEqual({ place: "引用库", target: null });
     expect(locateGeneration(snapshot, generation("final_video", "x"))).toEqual({ place: "项目", target: null });
-    expect(locateGeneration(snapshot, generation("video_frame", "asset-id"))).toEqual({
-      place: "已不在当前脚本中",
-      target: null,
-    });
-    expect(locateGeneration(snapshot, generation("segment_video", "gone"))).toEqual({
-      place: "已不在当前脚本中",
+    expect(locateGeneration(snapshot, generation("video_frame", "asset-id", ["asset-id"]))).toEqual({
+      place: "资产库",
       target: null,
     });
   });
+
+  it.each(["segment_video", "video_frame", "keyframe_image", "scene_final_video"] as const)(
+    "%s 的脚本目标已删除时提供跳转错误",
+    (kind) => {
+      expect(locateGeneration(snapshot, generation(kind, "gone", ["asset-id"]))).toEqual({
+        place: "页面已删除",
+        target: null,
+        unavailableMessage: "该任务对应的页面已删除，无法跳转。",
+      });
+    },
+  );
 });
