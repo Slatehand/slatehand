@@ -68,6 +68,7 @@ Web 的 `RecipeForm` 按目录渲染，新增 recipe 不需要增加表单组件
 | `seedvr2_7b_sharp_fp8.upscale` | 视频超分 | 异步 | MP4 |
 | `demucs_audio.separate` | 人声 / 背景分离 | 异步 | WAV |
 | `stable_audio_3.generate` | 文生音频 | 异步 | WAV |
+| `hunyuan_foley.generate` | 视频音效（MP4 + 音效描述） | 异步 | 48 kHz 单声道 WAV |
 | `yue2.generate` | 歌曲生成（风格描述 + 歌词） | 异步 | WAV |
 | `video.extract_frame` | 按帧号抽帧 | 异步 | PNG |
 | `image.pano_view` | 全景裁切 | 异步 | PNG |
@@ -77,6 +78,9 @@ Web 的 `RecipeForm` 按目录渲染，新增 recipe 不需要增加表单组件
 
 项目与 Playground 共用能力绑定、插件设置、请求构造和 manifest 约束。插件自己把设置换算成模型参数（例如画布与步数），
 插件 manifest 声明的输入检查（例如超分时原视频已接近目标档位则拒绝）在两侧同样生效。
+「视频音效」使用 HunyuanVideo-Foley XXL，接受 1–15 秒 MP4、音效描述与 seed。独立 WAV 与画面时长对齐，
+可在 Playground 试听，也可用「重新混音」与原视频合成。运行节点在 Provider 设置中选择。
+
 `audio.effect` 固定 `effect = "radio"`，不开放高级参数覆盖。
 
 `image.pano_view` 把 2:1 等距柱状全景裁成一个透视视图，参数是 `image_asset_id`、`yaw_deg`、`pitch_deg`、`hfov_deg`、

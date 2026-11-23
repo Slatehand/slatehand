@@ -26,6 +26,7 @@ class Capability(StrEnum):
     VIDEO_GENERATE = "video.generate"
     VIDEO_UPSCALE = "video.upscale"
     AUDIO_GENERATE = "audio.generate"
+    AUDIO_FOLEY = "audio.foley"
     AUDIO_SEPARATE = "audio.separate"
 
 
@@ -38,6 +39,7 @@ CAPABILITY_LABELS: dict[Capability, str] = {
     Capability.VIDEO_GENERATE: "视频生成",
     Capability.VIDEO_UPSCALE: "视频超分",
     Capability.AUDIO_GENERATE: "文生音频",
+    Capability.AUDIO_FOLEY: "视频音效",
     Capability.AUDIO_SEPARATE: "音轨分离",
 }
 

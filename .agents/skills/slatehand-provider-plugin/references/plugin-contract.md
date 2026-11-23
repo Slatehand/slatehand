@@ -95,6 +95,7 @@ Core 只理解封闭的能力（`Capability`）与语义角色（`Role`）。插
 | `speech.recognize` | 参考音频转写（同步） | `LANGUAGE`（`auto`、`zh` 或 `en`） | `SOURCE_AUDIO` | 返回带 `text` 属性的对象 |
 | `audio.separate` | 视频人声/背景分离 | `AUDIO_STEM` | `SOURCE_VIDEO` | WAV |
 | `audio.generate` | 仅 Playground | 参数全部由人填写 | — | WAV |
+| `audio.foley` | 仅 Playground | 音效描述与 seed 由人填写 | `SOURCE_VIDEO` | WAV |
 
 Playground 不按领域事实填角色：人按 manifest 直接填写全部参数与槽位，所以插件装上后无需额外代码就能在
 Playground 调试。

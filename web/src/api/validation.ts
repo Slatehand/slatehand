@@ -203,6 +203,7 @@ const schemas: Record<string, JsonSchema> = {
       "video.generate",
       "video.upscale",
       "audio.generate",
+      "audio.foley",
       "audio.separate"
     ]
   },
