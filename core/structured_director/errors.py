@@ -18,6 +18,6 @@ class RevisionConflictError(ValueError):
             raise ValueError("revision 冲突元数据必须同时提供 expected/current。")
         self.expected_revision = expected_revision
         self.current_revision = current_revision
-        # entities_changed / journal_unavailable / exact_grant；conflicts 列出相交实体。
+        # conflicts 在能定位相交实体时给出对应对象。
         self.conflict_reason = conflict_reason
         self.conflicts = conflicts

@@ -394,3 +394,268 @@ def test_missing_persisted_scope_and_changed_workset_cannot_resume(tmp_path):
             assert store.path.read_bytes() == before
 
     asyncio.run(run())
+
+
+def test_scene_edits_and_alarm_during_scoped_proposal(tmp_path, monkeypatch):
+    from test_director_commands import _TwoSceneScriptCompiler
+    from test_host_alarm import Recorder
+
+    from core.host_alarm import HOST_ALARM
+    from core.structured_director import StructuredDirectorService, StructuredDirectorStore
+
+    async def prepare():
+        return await _visual_project(str(tmp_path), script_proposer=_TwoSceneScriptCompiler())
+
+    store, service, initial, _ = asyncio.run(prepare())
+    scene_a, scene_b = initial.director_script.scenes
+    project = {"project_id": initial.project_id}
+    shared = replace(
+        agent(initial, request(initial, "keyframe")),
+        capabilities=frozenset(
+            {"project.read", "project.mutate", "project.propose", "project.execute"}
+        ),
+    )
+    spawn = Recorder()
+    monkeypatch.setattr(HOST_ALARM, "_spawn", spawn)
+    monkeypatch.setattr(HOST_ALARM, "_process", None)
+
+    async def start(owner):
+        result = await owner.call_tool(
+            "keyframe_proposal",
+            {
+                **project,
+                "action": "request",
+                "expected_revision": initial.revision,
+                "idempotency_key": "scene-a-plan",
+                "raw_user_instruction": "只规划场景一。",
+                "scene_ids": [scene_a.id],
+                "target_ids": [scene_a.segments[0].id],
+            },
+        )
+        assert not result.is_error, result.structured_content
+        return result.structured_content["data"]
+
+    async def run(server):
+        async with Client(server) as owner, Client(server) as colleague:
+            work = await start(owner)
+            request_id = work["request_id"]
+            source_revision = work["source_revision"]
+            assert not work["proposal_observation"]["actions"][0]["requires_explicit_user_request"]
+
+            opened = await colleague.call_tool("read_workflow", project)
+            handoff = opened.structured_content["data"]
+            active_task = handoff["workflow"]["active_task"]
+            discovered = handoff["task_discovery"]["active"][0]
+            assert active_task["request_id"] == discovered["id"] == request_id
+            assert active_task["phase"] == discovered["status"] == "awaiting_agent_submission"
+            assert discovered["run_status"] == "running"
+            assert discovered["request_association"] == "current_caller"
+            assert (
+                active_task["session_association"]
+                == discovered["session_association"]
+                == "unverified"
+            )
+            assert all(
+                action["requires_explicit_user_request"] for action in active_task["actions"]
+            )
+            assert handoff["workflow"]["required_next_actions"] == []
+            assert handoff["allowed_actions"] == []
+            assert handoff["allowed_actions_semantics"] == "human_ui_capabilities_not_next_steps"
+
+            for scene, blocked in ((scene_a, True), (scene_b, False)):
+                response = await colleague.call_tool(
+                    "read_professional_workset",
+                    {
+                        **project,
+                        "capability": "video_prompt",
+                        "scene_ids": [scene.id],
+                        "target_ids": [scene.segments[0].id],
+                    },
+                )
+                facts = response.structured_content["data"]
+                assert facts["observation_revision"] == source_revision
+                assert facts["not_current_stage"] is True
+                assert facts["mutation_blocked"] is blocked
+                assert facts["mutation_blocked_reason"] == (
+                    "active_task_conflict" if blocked else None
+                )
+
+            async def save(scene, number, key, **extra):
+                return await colleague.call_tool(
+                    "save_video_prompt",
+                    {
+                        **project,
+                        "scene_ids": [scene.id],
+                        "segment_id": scene.segments[number].id,
+                        "expected_revision": source_revision,
+                        "idempotency_key": key,
+                        "prompt_text": f"保存视频正文 {number}",
+                        **extra,
+                    },
+                )
+
+            before = store.path.read_bytes()
+            blocked = await save(scene_a, 1, "overlap")
+            failure = blocked.structured_content
+            assert failure["http_status"] == 409
+            error = failure["error"]
+            assert (error["code"], error["reason"]) == (
+                "action_not_allowed",
+                "active_task_conflict",
+            )
+            assert not error["state_changed"] and not error["automatic_retry_allowed"]
+            assert error["active_task"]["request_id"] == request_id
+
+            alarm = await colleague.call_tool(
+                "ring_alarm", {**project, "message": "场景一等待提交"}
+            )
+            assert not alarm.is_error, alarm.structured_content
+            assert alarm.structured_content["data"]["status"] == "ringing"
+            assert store.path.read_bytes() == before
+
+            first, second = await asyncio.gather(
+                save(scene_b, 0, "scene-b-first"),
+                save(scene_b, 1, "scene-b-second", recipe_inputs={"bindings": {}, "params": {}}),
+            )
+            for saved in (first, second):
+                assert not saved.is_error, saved.structured_content
+                assert (
+                    saved.structured_content["workflow"]["stage_status"]
+                    == "awaiting_agent_submission"
+                )
+            receipts = [item.structured_content["receipt"] for item in (first, second)]
+            assert sorted(receipt["new_revision"] for receipt in receipts) == [
+                source_revision + 1,
+                source_revision + 2,
+            ]
+            assert any(
+                receipt.get("rebased_from_revision") == source_revision for receipt in receipts
+            )
+            return request_id
+
+    with endpoint(tmp_path, store, service, shared) as (server, _):
+        request_id = asyncio.run(run(server))
+
+    async def complete_after_restart():
+        # Continue from the durable workset and the same Provider configuration.
+        current = store.read()
+        reopened = StructuredDirectorService(
+            StructuredDirectorStore(store.path.parent, current.project_id),
+            registry=service.provider_catalog,
+        )
+        foreign = replace(shared, id="another")
+        workflow = DirectorCommand("project.get_workflow_state", current.revision, "read", {})
+        result = await http(reopened, foreign, workflow)
+        assert result.status == 200, result.body
+        task = result.body["data"]["workflow"]["active_task"]
+        assert task["phase"] == "awaiting_agent_submission"
+        assert task["request_association"] == "other_caller_redacted"
+        assert task["request_key"] is None and task["actions"] == []
+        assert result.body["data"]["task_discovery"]["active"][0]["request_key"] is None
+        cancel = DirectorCommand(
+            "run.cancel", current.revision, "foreign-cancel", {"run_id": request_id}
+        )
+        assert (await http(reopened, foreign, cancel)).status == 403
+        p = proposal_for(current, "keyframe")
+        submit = DirectorCommand(
+            "keyframe.submit_proposal",
+            current.revision,
+            "submit-a",
+            {"request_id": request_id, "proposal": p},
+        )
+        assert (await http(reopened, foreign, submit)).status == 403
+        saved = await http(reopened, shared, submit)
+        assert saved.status == 200, saved.body
+        assert store.read().active_director_run is None
+        scene_b_ids = {s.id for s in scene_b.segments}
+        assert [
+            video.prompt_text
+            for video in store.read().video_plan.segments
+            if video.segment_id in scene_b_ids
+        ] == ["保存视频正文 0", "保存视频正文 1"]
+
+    asyncio.run(complete_after_restart())
+    assert len(spawn.calls) == 1
+
+
+def test_scoped_proposal_detects_changed_cross_scene_reference(tmp_path):
+    from test_director_commands import _TwoSceneScriptCompiler
+
+    from core.structured_director import ImageAssetCategory
+
+    async def run():
+        store, service, initial, _ = await _visual_project(
+            str(tmp_path), script_proposer=_TwoSceneScriptCompiler()
+        )
+        scene_a, scene_b = initial.director_script.scenes
+        binding = next(
+            item
+            for item in initial.keyframe_plan.segments
+            if item.segment_id == scene_b.segments[0].id
+        )
+        initial = await service.import_image_asset(
+            media_type="image/png",
+            content=b"\x89PNG\r\n\x1a\nfixture",
+            category=ImageAssetCategory.KEYFRAME,
+            expected_revision=initial.revision,
+        )
+        req = request(initial, "keyframe")
+        req = replace(req, arguments={**req.arguments, "scope": {"scene_ids": [scene_a.id]}})
+        owner = agent(initial, req)
+        other = replace(
+            owner,
+            id="other",
+            capabilities=frozenset({"project.read", "project.mutate", "project.execute"}),
+        )
+        opened = await http(service, owner, req)
+        assert opened.status == 200, opened.body
+        data = opened.body["data"]
+        assert data["mutation_blocked"] is False
+        assert data["core_facts"]["referenceable_keyframes"] == []
+        command = DirectorCommand(
+            "keyframe.apply_operations",
+            data["source_revision"],
+            "activate-b",
+            {
+                "operations": [
+                    {
+                        "op": "set_activation",
+                        "segment_id": binding.segment_id,
+                        "start_enabled": True,
+                        "end_enabled": False,
+                    }
+                ]
+            },
+        )
+        enabled = await http(service, other, command)
+        assert enabled.status == 200, enabled.body
+
+        selection = DirectorCommand(
+            "keyframe.select_candidate",
+            store.read().revision,
+            "select-b",
+            {"keyframe_id": binding.start_keyframe_id, "asset_id": initial.assets[-1].id},
+        )
+        selected = await http(service, other, selection)
+        assert selected.status == 200, selected.body
+        current = store.read()
+        observe = DirectorCommand("project.get_workflow_state", current.revision, "status", {})
+        handoff = (await http(service, owner, observe)).body["data"]
+        assert handoff["workflow"]["stage_status"] == "workset_stale"
+        assert handoff["task_discovery"]["active"][0]["status"] == "workset_stale"
+        submit = DirectorCommand(
+            "keyframe.submit_proposal",
+            current.revision,
+            "stale-submit-a",
+            {"request_id": data["request_id"], "proposal": proposal_for(current, "keyframe")},
+        )
+        before = store.path.read_bytes()
+        response = await http(service, owner, submit)
+        assert response.status == 409, response.body
+        error = response.body["error"]
+        assert error["conflict_reason"] == "proposal_workset_stale"
+        assert error["expected_revision"] == data["source_revision"]
+        assert error["current_revision"] == current.revision
+        assert store.path.read_bytes() == before
+
+    asyncio.run(run())

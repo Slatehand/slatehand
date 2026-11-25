@@ -10,7 +10,7 @@ from .errors import RevisionConflictError
 from .models import DirectorRunKind
 from .planning_inputs import keyframe_inputs
 from .reads.professional_worksets import workset_read
-from .reads.read_tools import _json_value
+from .reads.proposal_observation import proposal_workset_is_stale
 from .reads.video_recipes import keyframe_video_context
 
 
@@ -35,12 +35,13 @@ class PlanningProposalHandler:
             "scope": args["scope"],
             "target_ids": args["target_ids"],
         }
-        data = workset_read(document, request, provider_recipes=self.provider_recipes)
-        _, _, boundaries = keyframe_inputs(
-            document, tuple(args["target_ids"]), args["raw_user_instruction"]
+        return workset_read(
+            document,
+            request,
+            provider_recipes=self.provider_recipes,
+            instruction=args["raw_user_instruction"],
+            for_proposal_request=True,
         )
-        data["core_facts"]["required_shared_boundaries"] = _json_value(boundaries)
-        return data
 
     def begin(self, store, *, expected_revision, recovery=False, **args):
         document = store.read()
@@ -67,8 +68,15 @@ class PlanningProposalHandler:
             raise RevisionConflictError("项目已变化，请重新读取请求。")
         if run is None or run.id != request_id or run.kind is not DirectorRunKind.KEYFRAME_PLAN:
             raise ValueError("规划请求不存在或已经结束。")
-        if request_data["source_revision"] != expected_revision:
-            raise RevisionConflictError("规划工作集已过期，请取消并重新请求。")
+        if proposal_workset_is_stale(
+            document, run, "keyframe", request_data, provider_recipes=self.provider_recipes
+        ):
+            raise RevisionConflictError(
+                "规划工作集的事实已变化。请结束原请求后重新申请。",
+                expected_revision=request_data.get("source_revision", expected_revision),
+                current_revision=document.revision,
+                conflict_reason="proposal_workset_stale",
+            )
         args = request_data.get("request_arguments")
         if not isinstance(args, dict) or set(args) != self.request_fields():
             raise ValueError("规划恢复缺少原始 scope，不能扩大为全部。")

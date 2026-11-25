@@ -310,10 +310,10 @@ kind 的 `DirectorRun`（`reference_proposal`、`script_proposal`、`location_pl
 stateDiagram-v2
     [*] --> awaiting_agent_submission: *.request_proposal<br/>冻结工作集（source_revision · scope · targets · 原始指令）
     awaiting_agent_submission --> awaiting_agent_submission: *.get_proposal（重读同一工作集）
-    awaiting_agent_submission --> completed: *.submit_proposal<br/>source revision 未变 · 同一 run · 原 grant 有效
+    awaiting_agent_submission --> completed: *.submit_proposal<br/>工作集仍有效 · 同一 run · 原 grant 有效
     awaiting_agent_submission --> cancelled: *.cancel_proposal
     awaiting_agent_submission --> rejected: *.reject_proposal(reason)
-    awaiting_agent_submission --> workset_stale: 项目 revision 已越过 source_revision
+    awaiting_agent_submission --> workset_stale: 冻结事实变化或项目级 proposal revision 变化
     workset_stale --> cancelled: *.cancel_proposal（之后重新 request）
     awaiting_agent_submission --> failed
     completed --> [*]
@@ -322,7 +322,7 @@ stateDiagram-v2
     failed --> [*]
 ```
 
-- `awaiting_agent_submission` 表示**当前外部 Agent** 应基于冻结工作集撰写并显式 submit；Core 后台没有任何模型在跑。
+- `awaiting_agent_submission` 表示等待发起方基于冻结工作集完成并显式 submit；此时 Core 无需运行后台模型。
 - request 回执保存原始用户指令、scope、目标与完整 Core 工作集（`raw_user_instruction` 与 `core_facts` 分开）；
   get 与重放恢复同一输入，不会根据当前环境偷换工作集。
 - submit/reject/cancel 需要 `project.propose`，并验证原 request 属于当前 caller、原 grant 未撤销；Agent 不能借
@@ -334,9 +334,13 @@ stateDiagram-v2
   图片说明为空、来源不属于同一地点或 Scene/状态归属不合法时整体拒绝为 `invalid_proposal`。
 - Keyframe 请求可读目标 Segment 所属完整 Scene 作上下文，但 proposal 只能覆盖原请求的 `target_ids`（Segment；给 Scene
   表示其全部 Segment）；触及跨范围共享边界时拒绝，并给出最小扩展范围让用户重新授权。
+- 等待 Keyframe proposal 期间，Core 按项目中实际归属的 Scene 检查局部命令，并在提交时比较冻结工作集中的事实。
+  其它 Scene 的独立编辑可以推进项目 revision，原事实仍一致时可按当前 revision 提交。已选的跨场图片等事实发生变化时，观察和提交均判定
+  `workset_stale`。项目同时保留一个 proposal 工作流槽位。
 - 地点仍被 Scene 绑定时拒绝删除并列出引用者；地点图片没有 Shot/Keyframe 硬引用，删除条目只保留历史 Asset、Generation 与
   已生成的全景子图。地点修改不产生 Keyframe、视频或装配失效。
-- 观察投影 `proposal_observation` 同时给出 `source_revision` 与本次 `observation_revision`，以及同一 request_id 的精确工具动作。
+- 观察投影 `proposal_observation` 同时给出 `source_revision` 与本次 `observation_revision`。发现与当前凭据关联的请求时，
+  工具动作要求用户明确指定恢复；不同凭据只显示公开任务状态。
 
 ## 7. Keyframe 批次
 

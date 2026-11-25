@@ -17,6 +17,7 @@ from .planning_proposals import PlanningProposalHandler
 from .proposal_request_guard import owned_request
 from .reads.professional_worksets import speech_recipe
 from .reads.proposal_observation import proposal_observation
+from .reads.proposal_scope import ActiveTaskConflict, active_write_run
 
 OPERATIONS = {
     f"{kind}.{action}_proposal"
@@ -26,7 +27,8 @@ OPERATIONS = {
 
 
 def execute(store, command):
-    if current_caller.get() is None:
+    caller = current_caller.get()
+    if caller is None:
         raise AccessDenied("caller_required", "外部 proposal 入口需要受信 caller。")
     document = store.read()
     # get 是只读观察，与其它读命令一样不做 revision CAS。
@@ -62,6 +64,8 @@ def execute(store, command):
     ):
         raise InvalidArgumentsError("proposal 文本或 ID 不合法。")
     if op == f"{prefix}.request_proposal":
+        if active_write_run(document) is not None:
+            raise ActiveTaskConflict(document)
         if planning:
             try:
                 updated, _ = handler.begin(
@@ -98,6 +102,7 @@ def execute(store, command):
             updated.active_director_run,
             prefix=prefix,
             request_data=data,
+            direct_request=True,
         )
     else:
         data = owned_request(document, args["request_id"], prefix)
@@ -112,7 +117,10 @@ def execute(store, command):
                     **data,
                     "status": run.status.value,
                     "proposal_observation": proposal_observation(
-                        document, run, prefix=prefix, request_data=data
+                        document,
+                        run,
+                        provider_recipes=store.provider_recipe_views(),
+                        caller_id=caller.id,
                     ),
                 },
             )

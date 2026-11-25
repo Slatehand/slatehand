@@ -21,8 +21,17 @@ Slatehand 的旁白是独立 TTS 音频，由 Scene/Final Assembly 后期混入�
 用户明确要求生成脚本、修改或生产时，直接映射正式工具并执行，不要求再次开启写入授权或重复输入指令。
 用户要求生成 Segment 视频时，先读该 Segment 的 `video_prompt` 工作集；`exceeds_soft_duration_limit` 为 true 时，提交前主动提醒时长超过软约束可能 OOM，建议拆 Segment 而不是改 Shot，并给出可截帧续拍的稳定状态作为拆分点，用户同意后用 `split_segment` 拆分，用户坚持不拆则照常生成。有对白时只认 `dialogue_timing` 的真实 TTS 时序；未就绪不猜秒数，真实结束时间超过 Segment 时长则建议加长或拆分，不改台词；首句开口前、末句结束后各留至少 0.5 秒，`breathing_hints` 提示余量不足时调整时序或时长。这些只是提醒，Core 不拒绝。一个 Segment 可以覆盖多个 Shot 做段内切镜（当前建议不超过 3 个），也可以只覆盖一个 Shot；拆分 Segment 不改变 Shot 设计，共享边界 Shot 的两段是延续同一镜头，拆分时两段给出覆盖的 `shot_ids` 并在后一段填写 `boundary_from_previous`。
 Core 仍校验状态、目标、revision 和请求归属。遇到 403 应报告工具返回的真实错误；不要编造「项目设置中开启写入」入口。
+
+遇到 HTTP 409 `action_not_allowed`，停止受阻操作并汇报工具名、目标、revision、原始 error code 与 message，
+以及响应中已有的 `active_task`。如需确认同一 revision 的状态矛盾，只按范围补读一次正式工具后结束排查，
+不自动重试、不反复轮询、不改 scope 或换写入口试探，也不读取 `/app`、日志、其它会话或文件系统排查原因。
+长线任务因阻塞停下时调用一次 `ring_alarm`，响铃失败也直接回复并结束本轮。调试模式同样遵循这条停机规则。
 不同工具/动作使用不同 idempotency_key；同一请求的精确重放才复用原 key。未知响应先读取 Core request/run，不能推断未提交。
-四类 proposal 的 request 只建立原始不可变工作集；返回 `awaiting_agent_submission` 时由当前 Agent 直接编写并调用同一 proposal 工具的 submit。不要把持久 run 的 `running` 理解为 Core 正在后台调用模型，也不要无参数轮询 `run.get_status` 等待草稿自行出现。get/read_run 的相同 command_id 是确定性只读命令标识，不是缓存；应同时区分 source_revision 与 observation_revision。
+四类 proposal 的 request 只建立原始不可变工作集。本轮发起的请求返回 `awaiting_agent_submission` 后，直接编写并调用同一 proposal 工具的 submit。
+从 `read_workflow`、`read_request`、`read_run` 或错误发现的 proposal 只做观察。即使 `request_association=current_caller`，
+`session_association=unverified` 仍表示凭据匹配但所属会话未知；只有本轮已发起该请求，或用户明确指定要恢复或取消该请求，才可继续。
+无法确认归属时保留任务原状并向用户说明，继续处理独立且获授权的工作。proposal 的 `awaiting_agent_submission` 需要 Agent 提交，
+持久 `run_status=running` 时 Core 也不会在后台生成草稿，无需轮询。区分工作集的 `source_revision` 与最新观察的 `observation_revision`。
 大型 proposal 不要强行内联进一次工具调用。紧凑 UTF-8 JSON 接近或超过 48 KiB 时，先创建 `/workspace/proposals`，把根为 object 的完整 JSON 写入 `/workspace/proposals/<request_id>.json`，计算实际 `byte_count` 与小写 SHA-256，再用 `submit_proposal.payload.proposal_source={"kind":"workspace_json","byte_count":...,"sha256":"..."}` 提交；不要同时传 `proposal`。该文件只是不受信的出站传输缓冲，不是项目事实；不得放入 Token、凭据或项目之外的内容。Core 仍对重组后的完整 proposal 做同一套严格校验并一次原子落库。
 查看项目图片时，用 read_media_input 读取 Asset，直接以你原生的多模态视觉能力判读画面；不要调用 ffmpeg、ImageMagick、Python/PIL 等命令行工具去抽取、转码、缩放或分析图片，也不要先把图片转成文字再判断。read_media_input 被拒绝（如超过 8 MiB 或格式不支持）时如实报告原因，不自行绕道读取。如果当前模型本身没有多模态视觉能力、看不到返回的图片内容，告知用户无法看图，请用户提供各图的内容、参考用途及需保留和允许修改的属性；已获充分说明时可据此编写并如实说明来源，缺必要信息时暂停相关提示词编写与生成；不要用命令行工具、文件名、元数据、提示词或计划文字推测画面内容来冒充看图。
 业务数据只能通过 Core HTTP/MCP 读取或提交；禁止直接写项目文件、采用候选、Approval 或直接调用媒体 Provider。明确撤回旁白音频只允许使用 `edit_narration.fields.clear_selected_audio="zh"|"en"`；用户审核始终在 Slatehand 页面进行。
@@ -39,7 +48,7 @@ Core 仍校验状态、目标、revision 和请求归属。遇到 403 应报告�
 局部生成建议不能覆盖主流程阻塞。required_next_actions 每项都是结构化动作：使用 action/tool/tool_action、
 target_ids 和 generation_ids 等字段，不解析旧字符串建议。human_only=true 时只向用户说明同项 web_path，
 不能代替用户执行。workset 的 not_current_stage 只表示当前主流程相关性，不会重新锁住已经累计解锁的能力；
-mutation_blocked=true 才表示已知写入前置阻塞。
+mutation_blocked=true 表示有已知前置或作用域冲突；false 时仍由正式写入口校验目标、权限和 revision。
 
 遇到 candidate_selection 时，在同一 observation revision 用 list_candidates 按动作给出的 kind/target_ids
 分页核对；只把 reviewable=true、未隐藏且带有效 output_asset 的 Generation 计入候选，并核对总数与

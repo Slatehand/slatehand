@@ -125,7 +125,9 @@ flowchart LR
 - 工作区是每项目一个 Docker 卷 `slatehand-<agent>-<project_id>`；Agent 的会话与文件不是项目事实，Core 不读取。
 - 同一项目（或 Playground）可以用同一条命令同时启动多个终端，同一种或不同 Agent 都行。每次启动有自己的容器、内部网络与 gateway，
   同种 Agent 共用工作区卷和 profile 卷，委托凭据也相同。工作区文件一律原子替换，实例之间不会读到半截内容。
-  调试标记写在共享的 `startup.json`，以最近一次启动为准。并行实例的写入仍由 Core 串行化并校验 revision 与工作锁。
+  调试标记写在共享的 `startup.json`，以最近一次启动为准。Core 串行提交写入并校验 revision 与任务作用域。
+  有明确 Scene 范围的 Keyframe proposal 等待提交时，局部脚本、对白、旁白、Keyframe 和视频命令按实际写入目标判定冲突。
+  新的 proposal 仍占用同一个导演工作流槽位。跨场编辑成功后，原 proposal 的工作集事实仍相同即可按当前 revision 提交。
 - npm 缓存使用可写的 `/tmp/npm-cache`；Pi 扩展持久化在 profile 卷。
 - 这一边界缩小绕过面，但应用层校验仍然完整保留，部署隔离不复制领域规则。
 
@@ -181,8 +183,8 @@ MCP 约定：
   对完整 proposal 做同一套 schema 与领域校验，成功时一次原子写入，半成品不成为项目 authority。
 - 每个结果的 text content 都是完整 JSON，`structured_content` 携带同一份数据；只读 text 的客户端（如 AGY）与只读
   `structured_content` 的客户端都能直接拿到结果，不需要经 shell 转调 Core。
-- 项目写入被进行中的 Agent 请求锁定时，`action_not_allowed` 错误带出 `active_task`（proposal 请求 ID、类型与可用的
-  submit/cancel 动作），调用方据此提交或取消，不必另行排查。
+- 项目写入与进行中的 Agent 请求冲突时，HTTP 409 `action_not_allowed` 带出 `reason=active_task_conflict` 和
+  `active_task`。停止受阻操作，保留原始错误与目标，报告给用户。对共享凭据下发现的 proposal，恢复或取消均需要用户明确指定。
 - 错误信封保留 Core 原始 `code`，并区分 MCP schema、连接器与 Core 各层（见 [错误契约](error-contract.md)）。
 
 ## 专业能力
@@ -271,7 +273,12 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
   Shot/Segment 的 Scene）。规划 Shot 与 Segment 的那次写入由 Core 自动校准时序并建立生产基线，没有人工确认时序步骤；无法校准时返回
   `reason = narration_timing_conflict` 的 `script.apply_operations`，`message` 给出具体原因。
 - `active_task = null` 不代表项目没有任务；并行 Generation 与 run 由 `task_discovery` 单独列出。
-- 专业工作集在非当前阶段仍可读，附 `not_current_stage`（只表示相关性）与 `mutation_blocked`（已知写入阻塞）。
+- 专业工作集在非当前阶段仍可读。`not_current_stage` 表示主流程相关性，`mutation_blocked` 表示已知工作流前置或当前任务对目标
+  范围的编辑阻塞。`allowed_actions` 仅描述人类 Web 入口，Agent 应按工作集和正式命令判断局部可写性。
+- proposal 的 `active_task.phase` 与 `task_discovery.status` 在同版观察使用同一语义，例如 `awaiting_agent_submission` 或
+  `workset_stale`；持久 run 的生命周期另列为 `run_status`。等待提交期间没有 Core 后台模型任务。
+- `request_association=current_caller` 表示凭据匹配。`session_association=unverified` 表示 Core 无法据此识别 Agent 会话。
+  本次请求直接返回的工作集带提交动作；发现同凭据的其它工作时，恢复动作需要用户明确指定。其它 caller 的请求在发现界面隐藏请求键和动作。
 - **推荐动作语义**：`recommended_next_actions` 永不进入 `required_next_actions`、不改变 `allowed_actions` 与门禁。Agent 读到后向用户说明
   收益与可选性并提议，收到用户明确指令才执行；用户只说“推进”“下一步”时不执行推荐动作。推荐只在引用库已确认、生产基线已建立且无
   活动 run 时出现；视觉生产解锁后只保留在途地点批次的继续提示。
@@ -310,7 +317,10 @@ sequenceDiagram
    不要求用户再输入功能标签。功能提示本身不授予权限、不自动执行。
 2. 写入携带最近一次响应中的 revision 与新的幂等键。revision 落后但期间改动与本次请求无关时，Core 直接按当前项目执行
    （回执 `rebased_from_revision`）；返回 `revision_conflict` 时只重读 `conflicts` 列出的对象，用户意图仍适用才发起新的写请求。
-3. 断连后先 `read_workflow` / `task_discovery` 发现任务，再 `read_request` / `read_run` 细查；丢响应只用原参数、原 revision、原 key 重放。
+3. 断连后先 `read_workflow` / `task_discovery` 发现任务，再按任务归属和用户指令用 `read_request` / `read_run` 恢复；
+   丢响应只用原参数、原 revision、原 key 重放。
+   遇到 `action_not_allowed` 或同一观察版本的矛盾，最多补读一次正式工具后停止受阻操作并汇报，不自动重试、不轮询，也不读取
+   `/app`、日志或文件系统追因。长线任务因此停下时调用一次 `ring_alarm`，响铃失败则直接回复。
 4. 不对 `submission_uncertain` 自动重试；不靠新生成绕过未确认的取消。核查后按用户意图显式 retry，或用 `manage_generation(action="dismiss")` 放弃，
    二者都会让它退出活动任务。
 5. 生成、选择、批准是三件事：Agent 只做生成与观察，提醒用户在 Web 中采用与批准；地点图片同样只能由人类选择。

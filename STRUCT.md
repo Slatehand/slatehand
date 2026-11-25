@@ -319,6 +319,7 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `workflow_state.py`：主流程阶段、必需下一步、可选推荐动作与门禁投影。
 - `semantic_projection.py`：人和 Agent 共源的故事投影；Segment 生产扩展包含其他图片规划、选图状态与实际媒体绑定。
 - `professional_worksets.py`：专业能力工作集读取（导演脚本、本次目标与极简索引）。
+- `keyframe_worksets.py`：Keyframe 工作集事实，供专业读取、冻结与过期判定共用。
 - `details.py`：`project.get_details`，按 ID 读取索引之外的完整详情与原始导演方案。
 - `execution_reads.py`：外部恢复与人类审核衔接的最小状态。
 - `read_tools.py`：`project.*` 只读命令分派。
@@ -326,7 +327,8 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `dependencies.py`：生产依赖就绪评估。
 - `batch_observation.py`：外部批次观察（Keyframe 波次与地点成套生成共用回执/run 骨架）。
 - `entity_locator.py`：把写入冲突涉及的实体 ID 翻译成“场景 N－片段 M 首帧”这类定位描述。
-- `proposal_observation.py`：外部 proposal 请求观察。
+- `proposal_observation.py`：外部 proposal 请求的阶段、归属提示、恢复动作与工作集过期判定。
+- `proposal_scope.py`：确定 Keyframe proposal 占用的 Scene 及局部命令实际写入目标的归属，供事务门禁和工作集共用。
 - `common.py`：只读层共享的参数校验与 JSON 投影工具。
 
 #### media_submission/ — L6 媒体提交

@@ -29,6 +29,9 @@
   Segment 的生产扩展同时返回 `video_inputs`，展示无时间位置的任意图片规划、选图状态与实际媒体绑定。
 - `professional_worksets.py`：`project.get_contract`/`project.get_workset` 分页专业工作集；工作集只含导演脚本、
   本次目标与其它对象的极简索引（不逐段展开输出 schema）。
+- `keyframe_worksets.py`：专业读取与 proposal 新鲜度校验共用的 Keyframe 工作集事实。
+- `proposal_scope.py`：从持久请求解析 Keyframe 规划范围，关联局部写命令和实际所属 Scene，
+  供工作集与命令事务使用同一冲突判定。
 - `details.py`：`project.get_details`，按 ID 读取索引之外的 Keyframe、地点、地点图片、角色完整详情与原始导演方案。
 - `execution_reads.py`：handoff（workflow + allowed_actions + task discovery）、request 与
   asset manifest 只读衔接。

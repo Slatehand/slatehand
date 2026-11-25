@@ -31,17 +31,23 @@ class StagePrerequisiteError(ValueError):
         )
 
 
-def workflow_state(document, *, provider_catalog=None):
+def workflow_state(document, *, provider_catalog=None, direct_proposal_id=None, caller_id=None):
     status = document.status
     script = document.director_script
     run = document.active_director_run
     active_task = None
     if run is not None:
-        active_task = proposal_observation(document, run)
+        active_task = proposal_observation(
+            document,
+            run,
+            direct_request=run.id == direct_proposal_id,
+            caller_id=caller_id,
+            provider_recipes=() if provider_catalog is None else provider_catalog.recipe_views(),
+        )
         if active_task is not None:
             stage = active_task["proposal_kind"]
             phase = active_task["phase"]
-            required = [active_task["actions"][0]]
+            required = [active_task["actions"][0]] if run.id == direct_proposal_id else []
             return _workflow_result(
                 document,
                 stage,
@@ -161,7 +167,7 @@ def workflow_state(document, *, provider_catalog=None):
     return _final_workflow(document)
 
 
-def _workflow_result(document, stage, phase, required, *, active_task=None):
+def _blocking_actions(document):
     blocked = {}
     if document.director_script is None:
         for prefix in (
@@ -175,6 +181,11 @@ def _workflow_result(document, stage, phase, required, *, active_task=None):
             blocked[prefix] = {"reason": "reference_review_or_script_required"}
     if document.director_script is None and not references_reviewed(document):
         blocked["script"] = {"reason": "reference_review_required"}
+    return blocked
+
+
+def _workflow_result(document, stage, phase, required, *, active_task=None):
+    blocked = _blocking_actions(document)
     return {
         "current_stage": stage,
         "stage_status": phase,
@@ -996,7 +1007,7 @@ def require_workflow_action(document, action):
     if action == "script.request_proposal" and not references_reviewed(document):
         raise StagePrerequisiteError(document, "reference_review_required")
     prefix = action.split(".")[0]
-    if prefix in workflow_state(document)["blocked_actions"]:
+    if prefix in _blocking_actions(document):
         raise StagePrerequisiteError(document, "reference_review_or_script_required")
     if document.status is Status.AWAITING_PROPOSAL and prefix == "script":
         raise StagePrerequisiteError(document, "reference_proposal_required")

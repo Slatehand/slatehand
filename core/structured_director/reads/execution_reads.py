@@ -10,7 +10,7 @@ from ..generation_lifecycle import _generation_recovery
 from ..models import unresolved_uncertain_ids
 from .batch_observation import batch_observation
 from .common import _asset_summary, _exact_arguments, _id
-from .proposal_observation import proposal_observation
+from .proposal_observation import proposal_observation, proposal_phase
 from .snapshot_view import human_allowed_actions
 from .workflow_state import workflow_state
 
@@ -18,12 +18,20 @@ from .workflow_state import workflow_state
 _DEFAULT_RECENT_COUNT = 5
 
 
+def request_caller_id():
+    caller = current_caller.get()
+    return None if caller is None else caller.id
+
+
 def handoff_read(document, arguments, *, provider_catalog=None):
     _exact_arguments(arguments, optional={"cursor", "limit"})
+    provider_recipes = () if provider_catalog is None else provider_catalog.recipe_views()
     return {
         "project_id": document.project_id,
         "revision": document.revision,
-        "workflow": workflow_state(document, provider_catalog=provider_catalog),
+        "workflow": workflow_state(
+            document, provider_catalog=provider_catalog, caller_id=request_caller_id()
+        ),
         "contract_hashes": contract_hashes(),
         "web_path": f"/?project={document.project_id}",
         "allowed_actions": list(human_allowed_actions(document)),
@@ -40,14 +48,14 @@ def handoff_read(document, arguments, *, provider_catalog=None):
             "workflow.recommended_next_actions 是不阻塞主流程的可选建议，"
             "先向用户提议，收到明确指令再执行；"
             "workflow.active_task 只表示主流程任务，并行 run/Generation 读取 task_discovery；"
-            "not_current_stage 只表示主流程相关性，局部可写性读取 mutation_blocked；"
+            "Agent 局部写入的已知阻塞见工作集 mutation_blocked；"
             "human_only 动作请用户在导演台执行，外部 Agent 不接收人类凭据。"
         ),
-        "task_discovery": _task_discovery(document, arguments),
+        "task_discovery": _task_discovery(document, arguments, provider_recipes=provider_recipes),
     }
 
 
-def _task_discovery(document, arguments):
+def _task_discovery(document, arguments, *, provider_recipes=()):
     """只投影已有 run/request/Generation；不创建恢复账本或读取其它 caller 正文。"""
     caller = current_caller.get()
     own_request_ids = {
@@ -63,11 +71,14 @@ def _task_discovery(document, arguments):
     generation_run = {}
     run_batch = {}
     generation_batch = {}
+    rejected_proposals = set()
     for record in document.application_requests:
         data = receipt_data[record.request_id]
         linked_run_id = _linked_run_id(data)
         if linked_run_id is not None:
             run_record.setdefault(linked_run_id, record)
+            if record.operation.endswith(".reject_proposal"):
+                rejected_proposals.add(linked_run_id)
         batch_id = data.get("batch_id") if isinstance(data, dict) else None
         if isinstance(batch_id, str):
             if linked_run_id is not None:
@@ -108,12 +119,33 @@ def _task_discovery(document, arguments):
                 )
             )
         )
+        proposal_fields = {}
+        status = run.status.value
+        if record is not None and record.operation.endswith(".request_proposal"):
+            data = receipt_data[record.request_id]
+            proposal_fields = {
+                "run_status": status,
+                "session_association": "unverified",
+                "scope": data.get("scope") or (data.get("request_arguments") or {}).get("scope"),
+            }
+            if status == "cancelled":
+                status = "rejected" if run.id in rejected_proposals else "cancelled"
+            else:
+                status = proposal_phase(
+                    document,
+                    run,
+                    record.operation.removesuffix(".request_proposal"),
+                    data,
+                    provider_recipes=provider_recipes,
+                    record=record,
+                )
         tasks.append(
             {
                 "task_type": "director_run",
                 "id": run.id,
                 "kind": run.kind.value,
-                "status": run.status.value,
+                "status": status,
+                **proposal_fields,
                 "target_ids": target_ids,
                 "created_at": run.created_at,
                 "updated_at": run.updated_at,
@@ -164,6 +196,8 @@ def _task_discovery(document, arguments):
 
     active_statuses = {
         "running",
+        "awaiting_agent_submission",
+        "workset_stale",
         "waiting_user",
         "waiting_jobs",
         "submitting",
@@ -214,7 +248,7 @@ def _task_discovery(document, arguments):
         "semantics": {
             "active": "all_project_active_runs_and_generations",
             "recent": "latest_terminal_runs_and_generations_older_via_next_cursor",
-            "request_association": "current_caller_application_requests_only",
+            "request_association": "caller_credential_match",
             "request_redaction": "other_caller_links_are_marked_but_ids_and_keys_are_hidden",
             "generation_timestamps": "persisted_generation_lifecycle_not_director_run_time",
             "run_association": "null_run_id_can_be_not_applicable_or_legacy_unavailable",
@@ -314,7 +348,7 @@ def _discovery_offset(cursor, revision):
     return value["offset"]
 
 
-def request_read(document, arguments):
+def request_read(document, arguments, *, provider_recipes=()):
     _exact_arguments(arguments, required={"request_key"})
     key = arguments["request_key"]
     if not isinstance(key, str) or not 1 <= len(key) <= 200:
@@ -338,7 +372,9 @@ def request_read(document, arguments):
             None,
         )
         if run is not None:
-            observation = proposal_observation(document, run)
+            observation = proposal_observation(
+                document, run, provider_recipes=provider_recipes, caller_id=caller.id
+            )
             request_arguments = result.get("request_arguments")
             request_arguments = request_arguments if isinstance(request_arguments, dict) else {}
             proposal_kind = record.operation.removesuffix(".request_proposal")

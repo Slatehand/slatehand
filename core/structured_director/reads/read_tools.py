@@ -27,7 +27,7 @@ from .common import (
 from .common import _object_count as _object_count
 from .dependencies import _get_dependencies, _selected_assets
 from .details import details_page_read
-from .execution_reads import asset_manifest, handoff_read, request_read
+from .execution_reads import asset_manifest, handoff_read, request_caller_id, request_read
 from .impact import preview_command_impact
 from .professional_worksets import contract_page_read, workset_page_read
 from .proposal_observation import proposal_observation
@@ -55,7 +55,9 @@ def execute_project_read(
         "project.get_workflow_state": lambda current, args: handoff_read(
             current, args, provider_catalog=provider_catalog
         ),
-        "project.get_request": request_read,
+        "project.get_request": lambda current, args: request_read(
+            current, args, provider_recipes=provider_recipes or ()
+        ),
         "project.get_contract": lambda current, args: contract_page_read(
             current, args, provider_catalog=provider_catalog
         ),
@@ -64,6 +66,7 @@ def execute_project_read(
             args,
             provider_recipes=provider_recipes or [],
             provider_catalog=provider_catalog,
+            caller_id=request_caller_id(),
         ),
         "project.get_projection": lambda current, args: build_semantic_projection(
             current, args, provider_recipes=provider_recipes, provider_catalog=provider_catalog
@@ -81,7 +84,9 @@ def execute_project_read(
             current, args, catalog=provider_catalog
         ),
         "project.preview_impact": _preview_impact,
-        "run.get_status": _get_run_status,
+        "run.get_status": lambda current, args: _get_run_status(
+            current, args, provider_recipes=provider_recipes or ()
+        ),
     }
     reader = readers.get(name)
     if reader is None:
@@ -92,7 +97,7 @@ def execute_project_read(
 
 
 def _get_run_status(
-    document: StructuredDirectorDocument, arguments: dict[str, object]
+    document: StructuredDirectorDocument, arguments: dict[str, object], *, provider_recipes=()
 ) -> dict[str, object]:
     _exact_arguments(arguments, required={"run_id"})
     run_id = _id(arguments["run_id"], "run_id")
@@ -104,7 +109,9 @@ def _get_run_status(
     return {
         "project_revision": document.revision,
         "run": _json_value(run),
-        "proposal_observation": proposal_observation(document, run),
+        "proposal_observation": proposal_observation(
+            document, run, provider_recipes=provider_recipes, caller_id=request_caller_id()
+        ),
         "batch_observation": (None if batch_id is None else batch_observation(document, batch_id)),
         "directives": [
             _json_value(item) for item in document.director_directives if item.run_id == run_id

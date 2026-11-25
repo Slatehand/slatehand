@@ -5,11 +5,8 @@ from ..models import LocationImageKind
 from ..script_index import scene_segments
 from ..video_inputs import start_frame_extraction_source
 from .common import _exact_arguments, _ids, _json_value
-from .professional_worksets import (
-    _AGENT_PAGE_BYTES,
-    _agent_page,
-    keyframe_prompt_problems,
-)
+from .keyframe_worksets import keyframe_prompt_problems
+from .professional_worksets import _AGENT_PAGE_BYTES, _agent_page
 
 DETAIL_KINDS = ("keyframe", "location", "location_image", "character", "director_plan")
 _MAX_IDS = 20

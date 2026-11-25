@@ -12,23 +12,19 @@ from core.director_proposals.schema_gen import narration_language_schema
 from core.director_proposals.script_codec import _OUTPUT_SCHEMA as SCRIPT_SCHEMA
 from core.director_proposals.video_prompt import OUTPUT_SCHEMA as VIDEO_PROMPT_SCHEMA
 
-from ..codec.keyframe import serialize_character_references
-from ..models import LocationImageKind
 from ..planning_inputs import (
-    keyframe_inputs,
     location_inputs,
     narration_inputs,
     reference_characters,
 )
 from ..prompt_worksets import (
     image_prompt_guide,
-    keyframe_prompt_problems,
     video_prompt_workset,
 )
-from ..script_index import scene_segments
 from .common import _exact_arguments, _ids, _json_value
+from .keyframe_worksets import keyframe_workset_facts
+from .proposal_scope import active_task_blocks_scenes, scene_ids_for_targets
 from .semantic_projection import build_semantic_projection, build_semantic_tree
-from .video_recipes import keyframe_video_context
 from .workflow_state import workflow_state
 
 _CAPABILITY_ACTION_NAMESPACE = {
@@ -77,148 +73,6 @@ def _validate_if_hash(value: object) -> str | None:
     except ValueError as exc:
         raise ValueError("if_hash 必须是 64 位小写十六进制内容 hash。") from exc
     return value
-
-
-def _saved_keyframe_plan(document, scene_ids, *, provider_catalog=None):
-    plan = document.keyframe_plan
-    if plan is None:
-        return {
-            "status": "not_established",
-            "source_script_revision": None,
-            "segments": [],
-            "keyframes": [],
-        }
-    script = document.director_script
-    if script is None:
-        raise ValueError("Keyframe 计划缺少当前导演脚本。")
-    scoped_segment_ids = {
-        segment.id
-        for scene in script.scenes
-        if scene.id in scene_ids
-        for segment in scene_segments(scene)
-    }
-    bindings = [item for item in plan.segments if item.segment_id in scoped_segment_ids]
-    frame_bindings: dict[str, list[dict[str, str]]] = {}
-    for binding in bindings:
-        frame_bindings.setdefault(binding.start_keyframe_id, []).append(
-            {"segment_id": binding.segment_id, "slot": "start"}
-        )
-        frame_bindings.setdefault(binding.end_keyframe_id, []).append(
-            {"segment_id": binding.segment_id, "slot": "end"}
-        )
-    frame_ids = set(frame_bindings)
-    return {
-        "status": "established",
-        "source_script_revision": plan.source_script_revision,
-        "segments": [
-            {
-                "segment_id": item.segment_id,
-                "start_keyframe_id": item.start_keyframe_id,
-                "end_keyframe_id": item.end_keyframe_id,
-                "start_enabled": item.start_enabled,
-                "end_enabled": item.end_enabled,
-                "reference_asset_ids": list(item.reference_asset_ids),
-            }
-            for item in bindings
-        ],
-        "keyframes": [
-            {
-                "id": item.id,
-                "owner_segment_id": item.owner_segment_id,
-                "predecessor_keyframe_id": item.predecessor_keyframe_id,
-                "prompt_text": item.prompt_text,
-                "prompt_problems": keyframe_prompt_problems(
-                    document, item, provider_catalog=provider_catalog
-                ),
-                "visible_character_ids": list(item.visible_character_ids),
-                "character_references": serialize_character_references(item),
-                "reference_keyframe_ids": list(item.reference_keyframe_ids),
-                "reference_location_image_ids": list(item.reference_location_image_ids),
-                "extraction_suggested": item.extraction_suggested,
-                "reuse_keyframe_id": item.reuse_keyframe_id,
-                "selected_asset_id": item.selected_asset_id,
-                "bindings": frame_bindings[item.id],
-            }
-            for item in plan.keyframes
-            if item.id in frame_ids
-        ],
-    }
-
-
-def _referenceable_keyframes(document):
-    """全项目已有选中图的 Keyframe 索引：可作为其它帧的参考，提交时用其当前选中图。
-
-    只给定位信息；画面正文等完整详情经 ``project.get_details(kind="keyframe")`` 按需读取。
-    """
-    plan = document.keyframe_plan
-    script = document.director_script
-    if plan is None or script is None:
-        return []
-    slots: dict[str, list[dict[str, str]]] = {}
-    for scene in script.scenes:
-        for segment in scene_segments(scene):
-            binding = next((b for b in plan.segments if b.segment_id == segment.id), None)
-            if binding is None:
-                continue
-            for slot, keyframe_id in (
-                ("start", binding.start_keyframe_id),
-                ("end", binding.end_keyframe_id),
-            ):
-                slots.setdefault(keyframe_id, []).append(
-                    {"scene_id": scene.id, "segment_id": segment.id, "slot": slot}
-                )
-    return [
-        {
-            "keyframe_id": item.id,
-            "bindings": slots[item.id],
-            "visible_character_ids": list(item.visible_character_ids),
-        }
-        for item in plan.keyframes
-        if item.selected_asset_id is not None and item.id in slots
-    ]
-
-
-def _keyframe_location_images(document):
-    """全项目地点图片索引；referenceable 的条目可由本帧显式参考，提交其当前选中图。
-
-    本 Scene 地点的图片强制说明在 ``location_library`` 中；其它地点图片的说明经
-    ``project.get_details(kind="location_image")`` 按需读取。
-    """
-    return [
-        {
-            "image_id": image.id,
-            "name": image.name,
-            "kind": image.kind.value,
-            "location_id": location.id,
-            "location_name": location.name,
-            "referenceable": image.kind is LocationImageKind.IMAGE
-            and image.selected_asset_id is not None,
-        }
-        for location in document.location_library.locations
-        for image in location.images
-    ]
-
-
-def _keyframe_location_library(document, scenes):
-    """只投影当前 Scene 使用的地点语义与图片强制说明；不含图片生成正文，不构成自动输入。"""
-    location_ids = {scene.location_id for scene in scenes if scene.location_id is not None}
-    result = []
-    for location in document.location_library.locations:
-        if location.id not in location_ids:
-            continue
-        value = _json_value(location)
-        value["images"] = [
-            {
-                "id": image.id,
-                "name": image.name,
-                "kind": image.kind.value,
-                "description": image.description,
-                "has_selected_image": image.selected_asset_id is not None,
-            }
-            for image in location.images
-        ]
-        result.append(value)
-    return result
 
 
 def _location_planning_library(document):
@@ -315,7 +169,14 @@ def video_packing(provider_recipes: list[dict]) -> dict | None:
 
 
 def workset_read(
-    document, arguments, *, provider_recipes: list[dict] | None = None, provider_catalog=None
+    document,
+    arguments,
+    *,
+    provider_recipes: list[dict] | None = None,
+    provider_catalog=None,
+    instruction="",
+    caller_id=None,
+    for_proposal_request=False,
 ):
     _exact_arguments(
         arguments,
@@ -386,30 +247,14 @@ def workset_read(
                 build_semantic_projection(
                     document, {"level": "segment", "scope": scope, "ids": list(targets)}
                 )
-            scenes, segments, boundaries = keyframe_inputs(document, tuple(targets or scene_ids))
-            video_inputs = [
-                keyframe_video_context(document, segment.id, provider_recipes, provider_catalog)
-                for scene in scenes
-                for segment in scene.segments
-            ]
-            facts = {
-                "video_inputs": video_inputs,
-                "scenes": _json_value(scenes),
-                "context_segment_ids": [
-                    segment.id for scene in scenes for segment in scene.segments
-                ],
-                "writable_segment_ids": list(segments),
-                "target_segment_ids": list(segments),
-                "required_shared_boundaries": _json_value(boundaries),
-                "aspect_ratio": document.aspect_ratio.value,
-                "saved_keyframe_plan": _saved_keyframe_plan(
-                    document, scene_ids, provider_catalog=provider_catalog
-                ),
-                "location_library": _keyframe_location_library(document, scenes),
-                "location_images": _keyframe_location_images(document),
-                "image_prompt": image_prompt_guide(provider_catalog, skill_text=False),
-                "referenceable_keyframes": _referenceable_keyframes(document),
-            }
+            facts = keyframe_workset_facts(
+                document,
+                scene_ids,
+                targets,
+                provider_recipes=provider_recipes,
+                provider_catalog=provider_catalog,
+                instruction=instruction,
+            )
             schema = keyframe_schema()
             provenance.extend(["keyframe_plan", "generations", "location_library"])
         else:
@@ -434,9 +279,18 @@ def workset_read(
         provenance.append("narration_languages")
     if capability in {"reference_library", "script"}:
         schema = narration_language_schema(schema, document.narration_languages)
-    workflow = workflow_state(document, provider_catalog=provider_catalog)
+    workflow = workflow_state(document, provider_catalog=provider_catalog, caller_id=caller_id)
     action_namespace = _CAPABILITY_ACTION_NAMESPACE[capability]
     blocked = workflow["blocked_actions"].get(action_namespace)
+    write_scenes = scope.get("scene_ids")
+    if targets and workflow["active_task"] is not None:
+        write_scenes = scene_ids_for_targets(document, targets)
+    if (
+        blocked is None
+        and not for_proposal_request
+        and active_task_blocks_scenes(document, write_scenes)
+    ):
+        blocked = {"reason": "active_task_conflict"}
     not_current_stage = capability != workflow["current_stage"]
     result = {
         "workflow": workflow,
@@ -445,9 +299,7 @@ def workset_read(
         "not_current_stage_semantics": "informational_primary_workflow_relevance_only",
         "mutation_blocked": blocked is not None,
         "mutation_blocked_reason": None if blocked is None else blocked["reason"],
-        "mutation_blocked_semantics": (
-            "known_workflow_prerequisite_only_final_authorization_occurs_on_write"
-        ),
+        "mutation_blocked_semantics": ("known_prerequisites_and_task_scope_final_checks_on_write"),
         "workset_version": 1,
         "project_id": document.project_id,
         "source_revision": document.revision,
@@ -473,7 +325,12 @@ def workset_read(
 
 
 def workset_page_read(
-    document, arguments, *, provider_recipes: list[dict] | None = None, provider_catalog=None
+    document,
+    arguments,
+    *,
+    provider_recipes: list[dict] | None = None,
+    provider_catalog=None,
+    caller_id=None,
 ):
     _exact_arguments(
         arguments,
@@ -483,7 +340,11 @@ def workset_page_read(
     query = {key: value for key, value in arguments.items() if key not in {"cursor", "page_bytes"}}
     return _agent_page(
         workset_read(
-            document, query, provider_recipes=provider_recipes, provider_catalog=provider_catalog
+            document,
+            query,
+            provider_recipes=provider_recipes,
+            provider_catalog=provider_catalog,
+            caller_id=caller_id,
         ),
         query={"project_id": document.project_id, **query},
         cursor=arguments.get("cursor"),

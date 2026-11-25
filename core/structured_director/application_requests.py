@@ -21,6 +21,7 @@ from .models import NarrationLanguage
 from .proposal_request_guard import owned_request
 from .reads.batch_observation import current_batch_execution
 from .reads.entity_locator import describe_entities
+from .reads.proposal_scope import proposal_request_record, require_scene_edit_allowed
 from .reads.workflow_state import require_workflow_action
 
 
@@ -191,6 +192,14 @@ def execute_atomic_request(store, command, caller):
     effective = command if scope is None else replace(command, expected_revision=document.revision)
     if store._application_capture is not None:
         raise RuntimeError("不允许嵌套应用事务。")
+    require_scene_edit_allowed(document, command)
+    if command.name in {"run.cancel", "run.resume"}:
+        run_id = command.arguments.get("run_id")
+        run = next((item for item in document.director_runs if item.id == run_id), None)
+        if run is not None:
+            record, _ = proposal_request_record(document, run)
+            if record is not None:
+                owned_request(document, run.id, record.operation.removesuffix(".request_proposal"))
     require_workflow_action(document, command.name)
     captured = []
     store._application_capture = captured

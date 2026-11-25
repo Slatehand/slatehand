@@ -120,6 +120,7 @@ from .models import (
     StructuredDirectorDocument,
 )
 from .reads.proposal_observation import proposal_observation
+from .reads.proposal_scope import ActiveTaskConflict, active_write_run
 from .reads.read_tools import ReadResultTooLarge
 from .reads.snapshot_view import (
     serialize_snapshot,
@@ -262,30 +263,17 @@ class StructuredDirectorHttpApi:
             return _error(400, "invalid_request", "该请求不接受查询字段。")
         suffix = self._route_suffix(route_path)
         route, match = _match_route(method, suffix)
-        if method != "GET":
-            snapshot = self._service.snapshot()
-            active_run = None if snapshot is None else snapshot.active_director_run
-            if (
-                active_run is not None
-                and not _director_run_yielded(active_run)
-                and not self._write_gate_allows(route, method, route_path, body, active_run)
-            ):
-                # 带出锁的来源与可用动作，调用方不必再排查是哪个请求占用了写入。
-                active_task = proposal_observation(snapshot, active_run) or {
-                    "run_id": active_run.id
-                }
-                return _error(
-                    409,
-                    "action_not_allowed",
-                    "Agent 工作期间，结构化导演台的其它写入入口已锁定；"
-                    "先提交或取消 active_task 中的请求。",
-                    recoverable=True,
-                    details={"active_task": active_task},
-                    origin="core_domain",
-                    retry_policy="change_business_state_or_request",
-                )
         if route is None:
             return _error(404, "not_found", "请求的资源不存在。")
+        # 闹钟、观察与恢复直接进入命令契约；局部编辑在应用事务内校验实际范围。
+        handles_active_run = route.gate == "active_command" and _is_active_run_command(body)
+        if method != "GET" and not handles_active_run:
+            snapshot = self._service.snapshot()
+            active_run = None if snapshot is None else active_write_run(snapshot)
+            if active_run is not None and not self._write_gate_allows(
+                route, method, route_path, active_run
+            ):
+                return self._active_task_error(snapshot)
         scope = _web_rebase_scope(route, method, match, body)
         token = rebase_scope.set(scope)
         try:
@@ -297,6 +285,8 @@ class StructuredDirectorHttpApi:
                         self._service.snapshot(), scope.expected_revision, scope
                     ) from exc
                 raise
+        except ActiveTaskConflict as exc:
+            return self._active_task_error(exc.document)
         except StagePrerequisiteError as exc:
             return _stage_error(exc)
         except RevisionConflictError as exc:
@@ -352,20 +342,36 @@ class StructuredDirectorHttpApi:
             raise FileNotFoundError("项目权威状态不存在。")
         return current
 
+    def _active_task_error(self, document) -> JsonResponse:
+        run = document.active_director_run
+        caller = current_caller.get()
+        active_task = proposal_observation(
+            document,
+            run,
+            caller_id=None if caller is None else caller.id,
+            provider_recipes=self._service.provider_recipe_views()
+            if document.application_requests
+            else (),
+        ) or {"run_id": run.id}
+        return _error(
+            409,
+            "action_not_allowed",
+            "Agent 工作期间，请求与当前任务的写入范围冲突。请向用户报告该任务和阻塞目标。",
+            recoverable=True,
+            details={"active_task": active_task, "reason": "active_task_conflict"},
+            origin="core_domain",
+            retry_policy="change_business_state_or_request",
+        )
+
     def _write_gate_allows(
         self,
-        route: _Route | None,
+        route: _Route,
         method: str,
         path: str,
-        body: bytes,
         active_run: object,
     ) -> bool:
-        if route is None:
-            return False
         if route.gate == "none":
             return True
-        if route.gate == "active_command":
-            return method == "POST" and _is_active_run_command(body)
         if route.gate == "provider_observation":
             if method == "POST" and path == f"{self.resource_path}/generations/refresh":
                 return True
@@ -727,6 +733,8 @@ class StructuredDirectorHttpApi:
                 origin="authorization",
                 retry_policy="obtain_authorization_or_user_action",
             )
+        except ActiveTaskConflict as exc:
+            return self._active_task_error(exc.document)
         except StagePrerequisiteError as exc:
             return _stage_error(exc)
         except RevisionConflictError as exc:
@@ -791,8 +799,19 @@ class StructuredDirectorHttpApi:
         # Agent 通道：只读不附主流程（read_workflow 自带完整 workflow），写命令附紧凑摘要，
         # 使常规回执保持在 Agent 客户端直接内联的体积内。
         if include_snapshot or command.name not in READ_OPERATIONS:
+            direct_proposal_id = (
+                execution.data.get("request_id")
+                if isinstance(execution.data, dict)
+                and command.name.endswith(".request_proposal")
+                and not execution.replay
+                else None
+            )
+            caller = current_caller.get()
             workflow = workflow_state(
-                execution.document, provider_catalog=self._service.provider_catalog
+                execution.document,
+                caller_id=None if caller is None else caller.id,
+                provider_catalog=self._service.provider_catalog,
+                direct_proposal_id=direct_proposal_id,
             )
             payload["workflow"] = workflow if include_snapshot else agent_workflow_summary(workflow)
         payload |= {
@@ -1947,11 +1966,6 @@ def _stage_error(exc: StagePrerequisiteError) -> JsonResponse:
             }
         },
     )
-
-
-def _director_run_yielded(active_run: object) -> bool:
-    status = getattr(active_run, "status", None)
-    return status in {DirectorRunStatus.WAITING_USER, DirectorRunStatus.WAITING_JOBS}
 
 
 def _reject_location_binding_changes(document, scenes: list[dict[str, Any]]) -> None:

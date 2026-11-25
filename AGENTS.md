@@ -168,6 +168,14 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
   也不阻止超分、Scene 成片和最终装配使用它；不因此把已生成候选降级为不可选历史。
 - 每个项目在外部 Agent 中使用 Director 职责；Core 不持有厂商会话。引用库、脚本、旁白、地点、Keyframe、视频提示词和生产检查都是它按需使用的 Skill/类型化能力，不拥有独立 Thread、对话、阶段或权限。Director 可以提出类型化的脚本回改、引用库、地点、Keyframe、Segment 视频或超分动作并采用 Keyframe、对白 WAV、Segment 其他图片、造型图与参考音色候选，但不能绕过 Core 校验、其它候选选择和审核。
 - 阶段能力按 `workspace_layers` 累加；后续阶段继承前面已解锁能力。上游回改只失效相关产物和生产基线，不退回阶段、不重锁入口；历史 Asset/Generation 保留。Agent 工作期间仍锁定冲突写入，Approval 后仍须显式重新开放生产。
+- 有明确 Scene 范围的 Keyframe proposal 等待提交时，其它 Scene 的局部脚本、旁白、对白、Keyframe 和视频命令编辑可以继续。
+  Core 对实际目标判定是否冲突，并比较原始与当前工作集事实决定提案是否过期；普通 revision CAS 和授权仍适用。
+  `read_professional_workset.mutation_blocked` 报告目标范围内的已知阻塞，`not_current_stage` 仅表示主流程相关性。
+  `ring_alarm` 只需读取权限，独立于项目工作锁。
+- 外部创作 Agent 遇到 HTTP 409 `action_not_allowed` 或同一观察 revision 的状态矛盾时，停止受阻操作，报告工具、目标、revision、
+  原始错误以及响应给出的 `active_task`。必要时最多补读一次正式工具，不自动重试、不轮询，也不查 `/app`、日志或文件系统追因。
+  长线任务因此停下时调用一次 `ring_alarm`；失败直接汇报。共享凭据的 `current_caller` 只表示凭据匹配。
+  发现 `session_association=unverified` 的 proposal 时，仅在本轮已发起或用户明确指定恢复时继续处理。
 - 相邻 Segment（无论是否共享边界 Shot）默认硬切，仅边界 Keyframe identity 相同且两侧都启用才做 0.1 秒系统接缝融合（`seam_blend`），不是导演 dissolve；跨 Scene 使用同一规则。用户选择成片后仍需单独 Approval。
 - Scene 成片是 Scene 内已审核 Segment 视频加旁白的确定性渲染结果；最终成片装配只按脚本顺序拼接各 Scene 成片的字节，不再读取原始 Segment 或重新混入旁白。每个 Scene 都必须存在基于当前 Segment 视频与旁白选择生成的 Scene 成片，缺失或过期的 Scene 阻止最终装配并一次列出；重新生成或删除 Scene 成片会作废已建立的装配计划。
 - Scene Animatic 预览是旁白与关键帧就绪后由用户在 Scene 卡片手动触发的 Scene 级动态分镜：

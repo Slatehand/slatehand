@@ -34,6 +34,7 @@ from .models import (
     CharacterLook,
     KeyframeCharacterReference,
 )
+from .reads.proposal_scope import SCENE_EDIT_COMMANDS
 
 
 @dataclass(frozen=True, slots=True)
@@ -255,7 +256,9 @@ def _is_active_run_command(body: bytes) -> bool:
         value = json.loads(body)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return False
-    return isinstance(value, dict) and value.get("name") in READ_OPERATIONS | {
+    name = value.get("name") if isinstance(value, dict) else None
+    return isinstance(name, str) and name in READ_OPERATIONS | SCENE_EDIT_COMMANDS | {
+        "alarm.ring",
         "keyframe.generate_batch",
         "keyframe.continue_batch",
         "location.generate_set",

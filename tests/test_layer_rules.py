@@ -413,6 +413,11 @@ DIRECTION_WHITELIST = [
         "L4 内部",
     ),
     (
+        "core.structured_director.reads.keyframe_worksets",
+        "core.structured_director.prompt_worksets",
+        "L4 复用原专业工作集的实际输入与提示词提示；请求和过期判定比较同一投影。",
+    ),
+    (
         "core.structured_director.prompt_worksets",
         "core.structured_director.keyframe_requests",
         "L4 内部",

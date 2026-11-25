@@ -174,6 +174,7 @@ from .provider_ports import (
 from .provider_ports import (
     VideoFrameProvider as VideoFrameProvider,
 )
+from .reads.proposal_scope import SCENE_EDIT_COMMANDS, require_scene_edit_allowed
 from .reads.video_recipes import video_recipe_state
 from .script_index import find_segment, scene_segments
 from .store import RevisionConflictError, StructuredDirectorStore
@@ -277,6 +278,10 @@ class StructuredDirectorService:
             in {"run.get_status", *(f"{kind}.get_proposal" for kind in PROPOSAL_KINDS)}
         ):
             return await execute_application_command(self, caller, command)
+        if command.name in SCENE_EDIT_COMMANDS:
+            async with self._lock:
+                require_scene_edit_allowed(self._store.read(), command)
+                return self._command_registry.execute(command)
         return await self._execute_internal_director_command(command)
 
     async def _execute_internal_director_command(

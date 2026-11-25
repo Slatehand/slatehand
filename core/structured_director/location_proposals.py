@@ -31,7 +31,9 @@ def begin(store, *, expected_revision, raw_user_instruction, recovery=False):
 
 def workset(document, raw):
     data = workset_read(
-        document, {"capability": "location", "scope": {"project_id": document.project_id}}
+        document,
+        {"capability": "location", "scope": {"project_id": document.project_id}},
+        for_proposal_request=True,
     )
     # 请求回执不携带插件写法资源；当前图片插件的 image_prompt 以 read_professional_workset 为准。
     del data["core_facts"]["image_prompt"]

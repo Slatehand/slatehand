@@ -51,7 +51,9 @@ flowchart LR
     cas -- 落后且期间改动与本次请求相交 --> e6[revision_conflict / core_revision]
     cas --> gate{主流程门禁}
     gate -- 不满足 --> e7[stage_prerequisite_not_met / workflow_prerequisite]
-    gate --> domain{领域不变量}
+    gate --> lock{任务作用域}
+    lock -- 冲突 --> e10[action_not_allowed / core_domain]
+    lock --> domain{领域不变量}
     domain -- 拒绝 --> e8[business_rule_rejected / core_domain]
     domain --> prov{Provider}
     prov -- 未配置 / 状态调用失败 --> e9[provider_unavailable / provider_boundary]
@@ -64,7 +66,8 @@ flowchart LR
 | 连接器无法生成合法 wire JSON | `connector_serialization_error` / `connector_serialization` | 未发送；修正参数 |
 | HTTP/Core 顶层命令格式错误 | `invalid_json` 或 `invalid_request` / `core_parser` | 未进入领域写入；修正参数 |
 | 合法命令被目标或领域不变量拒绝 | `business_rule_rejected` / `core_domain` | 未写入；先改变业务事实或用户请求，不能盲重试 |
-| revision 冲突 | `revision_conflict` / `core_revision` | 返回 expected/current、`conflict_reason`（`entities_changed` / `journal_unavailable` / `exact_grant`）与 `conflicts`（`[{id, kind, locator}]`，至多 20 项）；先重读冲突对象，只有用户意图仍适用时才显式发起新写请求，禁止自动换 revision 重放 |
+| 正在进行的 Agent 任务阻止写入 | `action_not_allowed` / `core_domain` | 未写入，返回 `reason=active_task_conflict`、`active_task`；停止受阻操作，向用户汇报目标、revision 与原始错误，保持该任务原状直到归属及恢复意图明确 |
+| revision 冲突 | `revision_conflict` / `core_revision` | 返回 expected/current、`conflict_reason`（`entities_changed` / `journal_unavailable` / `exact_grant` / `proposal_workset_stale`）与 `conflicts`（`[{id, kind, locator}]`，至多 20 项）；先重读冲突对象，只有用户意图仍适用时才显式发起新写请求，禁止自动换 revision 重放 |
 | 认证、scope、capability、grant 或 caller 归属不符 | 原权限 code / `authorization` | 未调用业务写入；需要正确凭据、授权或用户动作 |
 | 主流程前置条件不足 | `stage_prerequisite_not_met` / `workflow_prerequisite` | 返回当前 workflow、reason 与 `required_next_actions`；按其中的人类/Agent 动作推进 |
 | Provider 尚未配置或状态调用失败 | `provider_unavailable` / `provider_boundary` | 先看 `state_changed` 与当前 revision；若已变化，先读 Generation，不得直接重复提交 |
