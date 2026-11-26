@@ -47,13 +47,15 @@ DeepSeek Harness、Grok 与 Claude Code 通过官方 npm 包的 `@latest` 安装
 `gateway.py` 只转发当前项目 Core 路径，并提供认证的公共 HTTPS CONNECT 隧道；拒绝非 443、私有/回环地址。
 转发 Core 请求时不设自己的请求体上限，按块流式转发，大小由 Core 按路由裁决并返回结构化 413。
 系统 DNS 返回非公网地址时，网关通过固定的 `https://1.1.1.1/dns-query` 重新解析 A 记录（标准 TLS 证书校验），
-处理本机代理的 Fake-IP；只有全部结果均为公网 IP 才连接已校验的具体地址。解析失败仍拒绝，不能直接放行虚拟私网地址。
+处理本机代理的 Fake-IP；直连 `1.1.1.1` 网络失败且配置了宿主代理时，经宿主代理 CONNECT 隧道访问同一 `1.1.1.1:443`
+并保留端到端证书校验。只有全部结果均为公网 IP 才连接已校验的具体地址，解析失败仍拒绝，不能直接放行虚拟私网地址。
 启动器优先读取 `HTTPS_PROXY`（兼容小写与 `HTTP_PROXY`）；变量未设置时，macOS 通过 `scutil --proxy`
 读取当前启用的系统 HTTPS/HTTP 代理。只接受无认证的本机 HTTP 代理，向 gateway 传入端口，
 由 `host.docker.internal` 访问；Agent 仍只拿到隔离 gateway 的认证代理地址。
-`gateway.HOST_PROXY_TARGETS` 列出的固定 Google 与 Anthropic 域名通过公网预检后，经宿主代理 CONNECT 原域名，
+`gateway.HOST_PROXY_TARGETS` 列出的固定 Google（含 AGY 使用的 `aicode`、`daily-cloudcode-pa`、`jetski-webchannel` 与 `play`）与 Anthropic 域名通过公网预检后，经宿主代理 CONNECT 原域名，
 使 Clash 等代理按域名选择与宿主 AGY 相同的出口。此分支信任宿主代理对这些厂商域名的再次解析；
 其它域名或 IP 仍连接已校验 IP、防止 DNS 重绑定。指定的宿主代理连接失败返回 502，不回退直连。
+CONNECT 隧道两端开启 TCP keepalive 并在隧道结束时关闭连接；启动器捕获 `SIGTERM`/`SIGHUP`，关闭终端时同步回收容器与临时网络。
 模型 TLS 端到端透传，Slatehand 不解析模型协议、不保存模型凭据、不筛选模型 ID，也不替代 Agent 刷新。
 
 Agent 仍处于非特权只读容器、内部网络，不挂载宿主 home、作品或 Docker socket。

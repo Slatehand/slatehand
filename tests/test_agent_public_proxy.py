@@ -306,3 +306,151 @@ def test_host_proxy_failures_and_private_google_resolution_are_closed(
 )
 def test_claude_code_login_and_inference_use_the_trusted_host_proxy(host):
     assert host in gateway.HOST_PROXY_TARGETS
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "aicode.googleapis.com",
+        "daily-cloudcode-pa.googleapis.com",
+        "jetski-webchannel.googleapis.com",
+        "play.googleapis.com",
+    ],
+)
+def test_agy_google_service_domains_use_the_trusted_host_proxy(host):
+    assert host in gateway.HOST_PROXY_TARGETS
+
+
+@pytest.mark.parametrize("resolved", [["172.217.114.4"], ["127.0.0.1"]])
+def test_fake_dns_retries_doh_through_host_proxy_when_direct_fails(monkeypatch, resolved):
+    monkeypatch.setenv("SLATEHAND_HOST_PROXY_PORT", "7897")
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("198.18.1.170", 443))],
+    )
+    calls = []
+
+    class Resolver:
+        def __init__(self, host, port=None, timeout=None):
+            self.host = host
+            self.port = port
+            self.timeout = timeout
+            calls.append(("init", host, port, timeout))
+
+        def set_tunnel(self, host, port):
+            calls.append(("tunnel", host, port))
+
+        def request(self, method, path, headers):
+            calls.append(("request", self.host, method, path, headers))
+            if self.host == "1.1.1.1":
+                raise OSError("direct 1.1.1.1 unreachable")
+
+        def getresponse(self):
+            return SimpleNamespace(
+                status=200,
+                read=lambda size: json.dumps(
+                    {"Status": 0, "Answer": [{"type": 1, "data": ip} for ip in resolved]}
+                ).encode(),
+            )
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(gateway.http.client, "HTTPSConnection", Resolver)
+    if resolved == ["172.217.114.4"]:
+        assert gateway.public_addresses("aicode.googleapis.com")[0][4] == ("172.217.114.4", 443)
+    else:
+        with pytest.raises(ValueError, match="公网"):
+            gateway.public_addresses("aicode.googleapis.com")
+    assert calls == [
+        ("init", "1.1.1.1", None, 10),
+        (
+            "request",
+            "1.1.1.1",
+            "GET",
+            "/dns-query?name=aicode.googleapis.com&type=A",
+            {"Accept": "application/dns-json"},
+        ),
+        ("init", "host.docker.internal", 7897, 10),
+        ("tunnel", "1.1.1.1", 443),
+        (
+            "request",
+            "host.docker.internal",
+            "GET",
+            "/dns-query?name=aicode.googleapis.com&type=A",
+            {"Accept": "application/dns-json"},
+        ),
+    ]
+
+
+def test_connect_tunnel_enables_keepalive_and_closes_after_tunnel(monkeypatch):
+    monkeypatch.setenv("GATEWAY_TOKEN", "synthetic-proxy")
+    observed_keepalive = []
+
+    class _TrackedGateway(gateway.Gateway):
+        def do_CONNECT(self):  # noqa: N802
+            super().do_CONNECT()
+            observed_keepalive.append(
+                (
+                    self.close_connection,
+                    self.connection.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE),
+                )
+            )
+
+    with socket.socket() as echo:
+        echo.bind(("127.0.0.1", 0))
+        echo.listen()
+        upstream_sockets = []
+
+        def accept_once():
+            with echo.accept()[0] as stream:
+                while data := stream.recv(4096):
+                    stream.sendall(data)
+
+        peer = threading.Thread(target=accept_once, daemon=True)
+        peer.start()
+        target = echo.getsockname()
+        original_socket = socket.socket
+
+        class _TrackedSocket(original_socket):
+            def connect(self, address):
+                upstream_sockets.append(self)
+                return super().connect(target)
+
+        monkeypatch.setattr(
+            gateway,
+            "public_addresses",
+            lambda host: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))],
+        )
+        monkeypatch.delenv("SLATEHAND_HOST_PROXY_PORT", raising=False)
+        monkeypatch.setattr(
+            gateway,
+            "socket",
+            SimpleNamespace(SOCK_STREAM=socket.SOCK_STREAM, socket=_TrackedSocket),
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _TrackedGateway)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with socket.create_connection(server.server_address, timeout=3) as client:
+                client.sendall(
+                    b"CONNECT provider.test:443 HTTP/1.1\r\n"
+                    b"Connection: keep-alive\r\n"
+                    b"Proxy-Authorization: Basic cGk6c3ludGhldGljLXByb3h5\r\n\r\n"
+                )
+                headers = b""
+                while not headers.endswith(b"\r\n\r\n"):
+                    headers += client.recv(1)
+                assert b"200" in headers
+                client.sendall(b"ping")
+                assert client.recv(4096) == b"ping"
+                assert upstream_sockets[0].getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
+            peer.join(timeout=3)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+    assert len(observed_keepalive) == 1
+    assert observed_keepalive[0][0] is True
+    assert observed_keepalive[0][1] != 0

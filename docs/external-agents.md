@@ -116,12 +116,12 @@ flowchart LR
 
 - 内部网络只有两类出口：当前项目的 Core application/Asset 路径，与公网 HTTPS 隧道（TLS 端到端透传，gateway 不解析模型协议、不读凭据）。
 - gateway 不设自己的请求体上限，按块把请求体转发给 Core；大小只由 Core 按路由裁决（application command ≤ 2 MiB），超限返回结构化 `request_too_large`。
-- 系统 DNS 返回非公网地址（本机代理的 Fake-IP）时，gateway 用固定的 `https://1.1.1.1/dns-query` 重新解析 A 记录；仍非公网则拒绝。
+- 系统 DNS 返回非公网地址（本机代理的 Fake-IP）时，gateway 用固定的 `https://1.1.1.1/dns-query` 重新解析 A 记录（直连失败且配置了宿主代理时经宿主代理 CONNECT 隧道访问同一 `1.1.1.1:443` 并保留证书校验）；仍非公网则拒绝。
 - 启动器优先从宿主 `HTTPS_PROXY`（兼容小写与 `HTTP_PROXY`）读取代理；变量未设置时，macOS 从当前系统
   HTTPS/HTTP 代理读取。只接受无认证的本机 HTTP 代理，只向 gateway 传入端口。
-  gateway 的 `HOST_PROXY_TARGETS` 固定的 Google 与 Anthropic（Claude Code 登录和推理）域名通过公网预检后，保留原域名经受信宿主代理 CONNECT，
+  gateway 的 `HOST_PROXY_TARGETS` 固定的 Google（含 AGY 使用的 `aicode`、`daily-cloudcode-pa`、`jetski-webchannel` 与 `play`）与 Anthropic（Claude Code 登录和推理）域名通过公网预检后，保留原域名经受信宿主代理 CONNECT，
   继承宿主的域名分流；此分支由宿主代理再次解析厂商域名。其它目标仍连接已校验 IP，拒绝 DNS 重绑定。
-  宿主代理失败返回 502，不回退直连；Agent 不获得宿主代理地址或直接宿主网络权限。
+  宿主代理失败返回 502，不回退直连；Agent 不获得宿主代理地址或直接宿主网络权限。CONNECT 隧道开启 TCP keepalive；启动器在收到 `SIGTERM`/`SIGHUP` 时同样回收临时容器与隔离网络。
 - 工作区是每项目一个 Docker 卷 `slatehand-<agent>-<project_id>`；Agent 的会话与文件不是项目事实，Core 不读取。
 - 同一项目（或 Playground）可以用同一条命令同时启动多个终端，同一种或不同 Agent 都行。每次启动有自己的容器、内部网络与 gateway，
   同种 Agent 共用工作区卷和 profile 卷，委托凭据也相同。工作区文件一律原子替换，实例之间不会读到半截内容。

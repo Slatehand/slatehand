@@ -14,6 +14,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
+from contextlib import suppress
 
 
 def read_macos_image():
@@ -109,7 +110,10 @@ def run_interactive(command, *, env, container, agent="codex", ready_url=None):
                     break
                 os.write(sys.stdout.fileno(), output)
             if sys.stdin in ready:
-                data = os.read(sys.stdin.fileno(), 65536)
+                try:
+                    data = os.read(sys.stdin.fileno(), 65536)
+                except OSError:
+                    break
                 if not data:
                     break
                 # Ctrl+V 为原生图片粘贴。普通文本/整段 bracketed paste 不读取剪贴板。
@@ -131,7 +135,8 @@ def run_interactive(command, *, env, container, agent="codex", ready_url=None):
                 os.write(master, data)
         return process.wait()
     finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, original)
+        with suppress(termios.error):
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, original)
         signal.signal(signal.SIGWINCH, old_resize)
         os.close(master)
         if slave >= 0:

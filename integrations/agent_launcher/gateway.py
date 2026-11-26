@@ -9,13 +9,14 @@ import os
 import re
 import select
 import socket
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # 这些固定的 Google 与 Anthropic 服务域名由厂商控制，不接受 Agent 自定义链式代理目标。
 # 标准 CONNECT 会由宿主代理重新解析域名，只有这些目标委托给受信宿主代理。
 HOST_PROXY_TARGETS = frozenset(
     {
+        "aicode.googleapis.com",
         "cloudcode-pa.googleapis.com",
         "daily-cloudcode-pa.googleapis.com",
         "autopush-cloudcode-pa.sandbox.googleapis.com",
@@ -23,8 +24,10 @@ HOST_PROXY_TARGETS = frozenset(
         "generativelanguage.googleapis.com",
         "aiplatform.googleapis.com",
         "s-aiplatform.googleapis.com",
+        "jetski-webchannel.googleapis.com",
         "oauth2.googleapis.com",
         "oauth2.mtls.googleapis.com",
+        "play.googleapis.com",
         "api.anthropic.com",
         "claude.ai",
         "claude.com",
@@ -32,23 +35,26 @@ HOST_PROXY_TARGETS = frozenset(
         "sso.claude.com",
     }
 )
+_SOL_SOCKET = socket.SOL_SOCKET
+_SO_KEEPALIVE = socket.SO_KEEPALIVE
 
 
-def public_addresses(host):
-    """仅连接校验后的公网 IP；本机 DNS 被代理替换时通过固定 TLS 出口重新解析。"""
-    try:
-        literal = ipaddress.ip_address(host)
-    except ValueError:
-        literal = None
-    if literal is not None and not literal.is_global:
-        raise ValueError("私网目标不可访问")
-    if not re.fullmatch(r"[a-zA-Z0-9.-]+", host) or "." not in host:
-        raise ValueError("目标域名不合法")
-    addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
-    if addresses and all(ipaddress.ip_address(a[4][0]).is_global for a in addresses):
-        return addresses
-    # 固定公网 IP + 标准 TLS 证书校验，避免系统 DNS 的 Fake-IP 再次介入。
-    connection = http.client.HTTPSConnection("1.1.1.1", timeout=10)
+def _host_proxy_port():
+    proxy_port = os.environ.get("SLATEHAND_HOST_PROXY_PORT")
+    if not proxy_port:
+        return None
+    port = int(proxy_port)
+    if not 1 <= port <= 65535:
+        raise ValueError("宿主代理端口不合法")
+    return port
+
+
+def _query_doh_a_records(host, *, proxy_port=None):
+    if proxy_port is None:
+        connection = http.client.HTTPSConnection("1.1.1.1", timeout=10)
+    else:
+        connection = http.client.HTTPSConnection("host.docker.internal", proxy_port, timeout=10)
+        connection.set_tunnel("1.1.1.1", 443)
     try:
         connection.request(
             "GET", f"/dns-query?name={host}&type=A", headers={"Accept": "application/dns-json"}
@@ -68,14 +74,34 @@ def public_addresses(host):
         connection.close()
 
 
+def public_addresses(host):
+    """仅连接校验后的公网 IP；本机 DNS 被代理替换时通过固定 TLS 出口重新解析。"""
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None and not literal.is_global:
+        raise ValueError("私网目标不可访问")
+    if not re.fullmatch(r"[a-zA-Z0-9.-]+", host) or "." not in host:
+        raise ValueError("目标域名不合法")
+    addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    if addresses and all(ipaddress.ip_address(a[4][0]).is_global for a in addresses):
+        return addresses
+    # 固定公网 IP + 标准 TLS 证书校验，避免系统 DNS 的 Fake-IP 再次介入。
+    try:
+        return _query_doh_a_records(host)
+    except (OSError, http.client.HTTPException):
+        proxy_port = _host_proxy_port()
+        if proxy_port is None:
+            raise
+        return _query_doh_a_records(host, proxy_port=proxy_port)
+
+
 @contextmanager
 def model_upstream(host, addresses):
     """固定厂商服务保留域名经宿主代理分流；其它目标始终连接已校验 IP。"""
-    proxy_port = os.environ.get("SLATEHAND_HOST_PROXY_PORT")
-    if proxy_port and host.lower().rstrip(".") in HOST_PROXY_TARGETS:
-        port = int(proxy_port)
-        if not 1 <= port <= 65535:
-            raise ValueError("宿主代理端口不合法")
+    port = _host_proxy_port()
+    if port is not None and host.lower().rstrip(".") in HOST_PROXY_TARGETS:
         proxy = http.client.HTTPConnection("host.docker.internal", port, timeout=30)
         try:
             proxy.set_tunnel(host, 443)
@@ -119,7 +145,11 @@ class Gateway(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.end_headers()
                 tunnel_open = True
+                self.close_connection = True
                 peers = (self.connection, upstream)
+                for peer in peers:
+                    with suppress(AttributeError, OSError):
+                        peer.setsockopt(_SOL_SOCKET, _SO_KEEPALIVE, 1)
                 while ready := select.select(peers, [], [], 300)[0]:
                     for source in ready:
                         content = source.recv(65536)

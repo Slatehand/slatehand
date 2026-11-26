@@ -356,3 +356,41 @@ def test_build_context_starts_mcp_handshake_in_isolation(tmp_path) -> None:
         assert launcher.agent_build_digest(repository_root) != digest
     finally:
         modified.write_bytes(original)
+
+
+def test_termination_signal_cleans_up_gateway_and_network_and_restores_handlers(
+    tmp_path, monkeypatch
+) -> None:
+    import os
+    import signal
+
+    calls: list[tuple] = []
+    requests: list[dict] = []
+    _prepare(monkeypatch, tmp_path, calls, requests)
+    monkeypatch.setattr(launcher.shutil, "copytree", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["launcher", "--socket", str(tmp_path / "control.sock"), "--playground", "--agent", "agy"],
+    )
+    previous_term = signal.getsignal(signal.SIGTERM)
+    previous_hup = signal.getsignal(signal.SIGHUP) if hasattr(signal, "SIGHUP") else None
+
+    def trigger_signal(*_args, **_kwargs):
+        os.kill(os.getpid(), signal.SIGTERM)
+        return 0
+
+    monkeypatch.setattr(launcher, "run_interactive", trigger_signal)
+
+    with pytest.raises(SystemExit) as stopped:
+        launcher.main()
+
+    assert stopped.value.code == 128 + signal.SIGTERM
+    assert signal.getsignal(signal.SIGTERM) is previous_term
+    if previous_hup is not None:
+        assert signal.getsignal(signal.SIGHUP) is previous_hup
+    rm_commands = [args for args, _ in calls if args[:3] == ["docker", "rm", "-f"]]
+    network_rms = [args for args, _ in calls if args[:3] == ["docker", "network", "rm"]]
+    assert any(args[-1].endswith("-agent") for args in rm_commands)
+    assert any(args[-1].endswith("-gateway") for args in rm_commands)
+    assert len(network_rms) == 1

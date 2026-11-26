@@ -8,10 +8,12 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import webbrowser
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -427,6 +429,19 @@ def main():
             environment["SLATEHAND_DSH_HOST_PORT"] = str(dsh_port)
         environment["HTTPS_PROXY"] = "http://pi:" + environment["GATEWAY_TOKEN"] + "@gateway:8080"
         checked(["docker", "network", "create", "--internal", network])
+        previous_handlers = {}
+        if threading.current_thread() is threading.main_thread():
+            handled_signals = [
+                sig for sig in (signal.SIGTERM, getattr(signal, "SIGHUP", None)) if sig is not None
+            ]
+
+            def handle_termination(signum, _frame):
+                for sig in handled_signals:
+                    signal.signal(sig, signal.SIG_IGN)
+                raise SystemExit(128 + signum)
+
+            for sig in handled_signals:
+                previous_handlers[sig] = signal.signal(sig, handle_termination)
         try:
             checked(
                 [
@@ -525,11 +540,15 @@ def main():
             )
             raise SystemExit(result)
         finally:
-            subprocess.run(["docker", "rm", "-f", agent_container], capture_output=True)
-            if web_proxy is not None:
-                subprocess.run(["docker", "rm", "-f", web_proxy], capture_output=True)
-            subprocess.run(["docker", "rm", "-f", gateway], capture_output=True)
-            subprocess.run(["docker", "network", "rm", network], capture_output=True)
+            try:
+                subprocess.run(["docker", "rm", "-f", agent_container], capture_output=True)
+                if web_proxy is not None:
+                    subprocess.run(["docker", "rm", "-f", web_proxy], capture_output=True)
+                subprocess.run(["docker", "rm", "-f", gateway], capture_output=True)
+                subprocess.run(["docker", "network", "rm", network], capture_output=True)
+            finally:
+                for sig, previous in previous_handlers.items():
+                    signal.signal(sig, previous)
     except KeyboardInterrupt:
         print(f"已停止 {label}。项目进度保留，稍后可用同一条命令重新连接。")
         raise SystemExit(130) from None
