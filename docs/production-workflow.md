@@ -379,7 +379,7 @@ Core 不自动选择。关键帧卡显示“建议复用 @来源”，提供“�
 **Agent 保存 recipe 输入**：外部 Agent 与人类走同一条 `video.update_recipe_inputs`，原子保存正文、当前 recipe 的 `bindings`
 与机制 `params`（MCP `save_video_prompt` 带 `recipe_inputs`）。媒体校验共用：manifest 槽位、数量、媒体类型、视频时长、说明必填、
 不重复、只引用本项目 Asset、进行中任务冲突与 revision。`video_prompt` 工作集给出槽位声明、已保存输入（`recipe_inputs`，
-按槽位、按键合并：给出的槽位整体替换，未给出的保留）、可绑定 Asset（`bindable_assets`）、本段可见角色锚定状态（`character_visuals`）与参数声明；Agent 优先使用多参考 recipe，对首尾帧未出现或仅见局部的可见角色主动绑入角色造型图，其它非角色手工参考与机制参数只在用户明确要求时增删或替换。
+按槽位、按键合并：给出的槽位整体替换，未给出的保留）、可绑定 Asset（`bindable_assets`）、本段可见角色锚定状态（`character_visuals`）与参数声明；Agent 优先使用多参考 recipe，对首尾帧未出现或仅见局部的可见角色主动绑入角色造型图，插件 Skill 明确委托按镜头意图选择的专项机制参数由 Agent 按段设置；其它非角色手工参考与机制参数只在用户明确要求时增删或替换。
 含对白 Segment 生成前每句对白必须已选 TTS；是否把它们加入参考音频由用户决定，未加入只软提示。命令带 `attach_dialogue_audio: true` 时，Core 按与 Web“一键添加本段对白 TTS”相同的规则合并进参考音频列表。
 视频候选选择与清除选择仍只属于人类。
 

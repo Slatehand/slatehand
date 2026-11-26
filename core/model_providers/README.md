@@ -11,6 +11,7 @@
   plugin_id 回到原实现；Core 确定性工具直接注册；
 - `settings.py`：`.runtime/providers.json` 的严格读写；
 - `image_prompt_skill.py`、`skills/`：项目与 Playground 共用的全局图片写作 Skill，以及 Playground 能力目录的 `audio_prompt`（当前文生音频 recipe 与随插件 Skill 全文）；图片工作集通过 `global_skills` 交付，当前插件的标签、画幅和专业 Skill 由 `image_prompt_guide` 汇总。有参考图时按真实标签逐图说明用途、正文逐图引用，不写文件名；无参考图时只写正文；
+- 兼容已有 recipe 输入时，新机制参数可声明 `default_when_omitted=True` 和默认值。SDK 与 Playground 在校验前补齐此键，线上 schema 同步标记为可省略。
 - `recipe.py`：语义输入与机制参数构成 `RecipeRequest`，按 manifest 校验；模型插件用 `submit_recipe` 接收异步请求，ASR 用 `execute_recipe` 同步返回文字；
 - `contracts.py`：Core 确定性工具的请求值对象，由 `core/media_tools/` 在本机执行；模型的 HTTP DTO 与 `to_request` 翻译位于插件包；
 - `boundary.py`：Core 消化调用句柄、进度和 Artifact 所需的最小内部类型；视频插件可在

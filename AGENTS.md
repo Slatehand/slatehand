@@ -154,7 +154,7 @@ Playground 不突破生产参数约束，也不包含候选选择、Approval 或
 - 语义角色参数由 Core 根据领域事实填写；没有角色的机制参数按 recipe 保存。旁白使用 `recipe_params[recipe_id]`，
   视频使用 `recipes[recipe_id].params`；Web 按声明渲染控件，Agent 按 `speech_recipe` 或 `video_prompt` 工作集填写。
   Agent 与人类经同一 `video.update_recipe_inputs` 原子保存视频正文、当前 recipe 的参考素材绑定与机制参数，校验相同；
-  Agent 优先使用多参考 recipe（Ref2VA），对首尾帧未出现或仅拍到局部而后续需露全身/正脸的可见角色主动补齐角色造型图（必要时先切到 Ref2VA），其它手工参考素材与机制参数只在用户明确要求时增删或替换；绑定按槽位、参数按键合并，未给出的部分保持原样。含对白 Segment 以
+  Agent 优先使用多参考 recipe（Ref2VA），对首尾帧未出现或仅拍到局部而后续需露全身/正脸的可见角色主动补齐角色造型图（必要时先切到 Ref2VA），插件 Skill 明确委托按镜头意图选择的专项机制参数由 Agent 按段设置，其它手工参考素材与机制参数只在用户明确要求时增删或替换；绑定按槽位、参数按键合并，未给出的部分保持原样。含对白 Segment 以
   `attach_dialogue_audio` 由 Core 按“一键添加本段对白 TTS”同一规则合并对白 WAV；Core 原样提交已保存正文、不追加对白约束；视频插件的提示词 linter 只在工作集 `prompt_problems` 中软提示格式问题，不阻止生成。
   音色描述仍是领域字段，映射到 prompt 角色。表演指示、语速与情感向量等属于各自插件的机制参数。
 - 每个媒体能力的插件绑定与实例设置是 Core 全局 Provider 设置，项目与 Playground 共用、只有人类可改；每次提交读取

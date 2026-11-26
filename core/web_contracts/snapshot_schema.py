@@ -225,6 +225,7 @@ def snapshot_schemas() -> dict[str, dict]:
                     "widget": _ref("ManifestWidget"),
                     "label": {"type": "string"},
                     "default": SETTING_VALUE,
+                    "default_when_omitted": BOOL,
                     "nullable": BOOL,
                     "advanced": BOOL,
                     "options": _array(_ref("ManifestOption")),

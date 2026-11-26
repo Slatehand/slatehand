@@ -48,7 +48,7 @@ Shot 的 `composition` 与已选首尾帧的景别或机位不一致时，已选
 ## 参考素材与参数
 
 - 工作集 `video_inputs[]` 给出当前 Segment 的其他图片计划与实际媒体绑定；图片可以是任意画面内容，不限角色、地点或关键帧。按 `reference_inputs[].asset_id` 用 `read_media_input` 审看已绑定图片；未选中的规划与候选不能冒充实际视频输入。需要单独规划或生成其他图片时，使用 `save_reference_image_plan` 与 `generate_media(kind="reference_image")`；看图后用 `select_reference_image` 选入对应卡片。
-- 对白 TTS（`attach_dialogue_audio`）与缺失全貌的本段可见角色造型图由你按上文规则主动补齐；其它非角色造型的手工参考（参考视频、手动环境声/音色、额外道具或地点图）、机制参数，以及替换或移除用户已有手动绑定，只在用户本轮明确要求时修改。改某个槽位时以工作集 `recipe_inputs` 中该槽位为起点，不擅自增删、重排无关绑定或改写其说明。
+- 对白 TTS（`attach_dialogue_audio`）与缺失全貌的本段可见角色造型图由你按上文规则主动补齐；当前插件 Skill 明确委托按镜头意图选择的专项机制参数，由你按段判断并与正文一起保存，遵从用户显式指定的取值。其它非角色造型的手工参考（参考视频、手动环境声/音色、额外道具或地点图）、其余机制参数，以及替换或移除用户已有手动绑定，只在用户本轮明确要求时修改。改某个槽位时以工作集 `recipe_inputs` 中该槽位为起点，不擅自增删、重排无关绑定或改写其说明。
 - 槽位以 `video_recipe.recipe.slots` 为准，只填首帧/尾帧以外的槽位；首尾帧由 Core 按已选关键帧填写，不写进 `bindings`。数量、媒体类型、时长与 `describe=required` 的必填说明都按槽位声明。
 - `asset_id` 从 `character_visuals`（角色造型图）或 `bindable_assets` 选取，其 `slots` 列出它能进入的槽位；用户点名的其它本项目 Asset 也可以，由 Core 校验。不能引用 Playground Asset。
 - `params` 只填 `video_recipe.editable_params` 声明的机制参数，只给要改的键，不改时传 `{}`；时长、seed、画幅等带语义角色的参数由 Core 填写。

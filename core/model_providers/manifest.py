@@ -150,6 +150,8 @@ class Field:
     # 设置摘要里展示该字段：enum/preset 显示选项 label，toggle 为真时显示 summary_label。
     summary: bool = False
     summary_label: str | None = None
+    # 只影响 recipe 请求。历史输入可省略显式声明了此行为的参数。
+    default_when_omitted: bool = False
 
     def __post_init__(self) -> None:
         if not self.key or not self.label:
@@ -168,6 +170,10 @@ class Field:
             or (self.component_labels and len(self.component_labels) != self.dimension)
         ):
             raise ValueError(f"字段 {self.key} 的向量维度不合法。")
+        if not isinstance(self.default_when_omitted, bool):
+            raise ValueError(f"参数 {self.key} 的 default_when_omitted 必须是布尔值。")
+        if self.default_when_omitted and self.default is None and not self.nullable:
+            raise ValueError(f"可省略参数 {self.key} 需要有效默认值。")
         # default 为 None 且不可空表示必填、没有默认值。
         if self.default is not None:
             self.validate(self.default)
@@ -227,6 +233,7 @@ class Field:
             "widget": self.widget.value,
             "label": self.label,
             "default": self.default,
+            **({"default_when_omitted": True} if self.default_when_omitted else {}),
             "nullable": self.nullable,
             "advanced": self.advanced,
             "options": [{"id": item.id, "label": item.label} for item in self.options],
@@ -640,7 +647,7 @@ def recipe_from_json(value):
     }:
         raise ValueError("recipe 声明缺少字段或包含未声明字段。")
     for item in value["params"]:
-        if not isinstance(item, dict) or set(item) != set(
+        if not isinstance(item, dict) or set(item) - {"default_when_omitted"} != set(
             Field("contract", Widget.TEXT, "契约").to_json()
         ):
             raise ValueError("recipe 参数声明不合法。")
@@ -655,6 +662,7 @@ def recipe_from_json(value):
             Widget(item["widget"]),
             item["label"],
             default=item["default"],
+            default_when_omitted=item.get("default_when_omitted", False),
             nullable=item["nullable"],
             role=None if item["role"] is None else Role(item["role"]),
             minimum=item["minimum"],

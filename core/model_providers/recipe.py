@@ -74,11 +74,16 @@ def role_field(recipe: Recipe, role: Role) -> Field | None:
     return next((item for item in recipe.params if item.role is role), None)
 
 
+def _with_optional_defaults(fields: Sequence[Field], values: Mapping[str, Any]) -> dict[str, Any]:
+    return {**{item.key: item.default for item in fields if item.default_when_omitted}, **values}
+
+
 def validate_mechanism_params(recipe: Recipe, value: object) -> dict[str, Any]:
-    """机制参数的完整对象：缺键、多键或取值不合法都拒绝。"""
+    """补全可省略的机制参数后校验完整对象。"""
     if not isinstance(value, Mapping):
         raise ValueError(f"{recipe.label} 参数必须是 JSON 对象。")
     fields = mechanism_fields(recipe)
+    value = _with_optional_defaults(fields, value)
     expected = {item.key for item in fields}
     if set(value) != expected:
         raise ValueError(_key_mismatch(f"{recipe.label} 参数", expected, set(value)))
@@ -117,6 +122,7 @@ def build_recipe_request(
     ]
     if len(distinct) != len(set(distinct)):
         raise ValueError("参考图不能与底图重复；声明互斥的输入槽位不能重复。")
+    params = _with_optional_defaults(recipe.params, params)
     expected = {item.key for item in recipe.params}
     if set(params) != expected:
         raise ValueError(_key_mismatch(f"{recipe.label} 参数", expected, set(params)))
@@ -187,6 +193,7 @@ def parse_recipe_wire(
     if not isinstance(value, Mapping):
         raise ValueError(f"{recipe.label} 参数必须是 JSON 对象。")
     params_fields = tuple(recipe.params if fields is None else fields)
+    value = _with_optional_defaults(params_fields, value)
     keys = {slot_wire_key(slot) for slot in recipe.slots} | {item.key for item in params_fields}
     if set(value) != keys:
         raise ValueError(_key_mismatch(f"{recipe.label} 参数", keys, set(value)))
@@ -281,12 +288,17 @@ def recipe_wire_schema(recipe: Recipe, *, fields: Sequence[Field] | None = None)
     properties: dict[str, Any] = {}
     for slot in recipe.slots:
         properties[slot_wire_key(slot)] = _slot_schema(slot)
+    required = list(properties)
     for item in recipe.params if fields is None else fields:
         properties[item.key] = field_schema(item)
+        if item.default_when_omitted:
+            properties[item.key]["default"] = item.default
+        else:
+            required.append(item.key)
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": list(properties),
+        "required": required,
         "properties": properties,
     }
 

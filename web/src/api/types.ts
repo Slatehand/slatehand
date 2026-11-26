@@ -76,6 +76,7 @@ export interface ManifestField {
   widget: ManifestWidget;
   label: string;
   default: string | number | boolean | null | number[];
+  default_when_omitted?: boolean;
   nullable: boolean;
   advanced: boolean;
   options: ManifestOption[];

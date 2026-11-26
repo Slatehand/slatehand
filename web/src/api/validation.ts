@@ -594,6 +594,9 @@ const schemas: Record<string, JsonSchema> = {
           }
         ]
       },
+      "default_when_omitted": {
+        "type": "boolean"
+      },
       "nullable": {
         "type": "boolean"
       },
