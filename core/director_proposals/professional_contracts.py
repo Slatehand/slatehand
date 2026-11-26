@@ -36,7 +36,12 @@ CONTRACTS = {
     "keyframe": (
         "keyframe_planner",
         "slatehand-keyframe-planner",
-        ("cinematic-keyframe-design.md", "cinematic-frame-prompting.md"),
+        (
+            "cinematic-keyframe-design.md",
+            "cinematic-frame-prompting.md",
+            "boundary-continuity.md",
+            "frame-references.md",
+        ),
     ),
     "location": (
         "location_planner",

@@ -203,7 +203,7 @@ def test_narration_before_shot_planning_and_result_size(tmp_path):
             break
     encoded = "".join(chunks).encode()
     assert hashlib.sha256(encoded).hexdigest() == digest
-    full = workset_read(huge, query)
+    full = workset_read(huge, query, for_agent_read=True)
     assert json.loads(encoded) == {
         key: value
         for key, value in full.items()
@@ -413,6 +413,48 @@ def test_saved_keyframe_plan_is_complete_scoped_and_independent_of_executable_in
             {"segment_id": first_segment.id, "slot": "end"},
             {"segment_id": second_segment.id, "slot": "start"},
         ]
+        focused = execute_project_read(
+            doc,
+            "project.get_workset",
+            {
+                **request,
+                "keyframe_context": "target",
+            },
+        )
+        facts = focused["core_facts"]
+        assert facts["context_segment_ids"] == [second_segment.id]
+        assert [item["segment_id"] for item in facts["video_inputs"]] == [second_segment.id]
+        local_frames = {f["id"]: f for f in facts["saved_keyframe_plan"]["keyframes"]}
+        assert local_frames == {shared: frames[shared], second_end: frames[second_end]}
+        assert all(
+            "text" not in r
+            for skill in facts["image_prompt"]["global_skills"]
+            for r in skill["resources"]
+        )
+        # 同场非目标帧的长正文不能增加单段响应，也不能让它的 hash 失效。
+        longer_plan = replace(
+            doc.keyframe_plan,
+            keyframes=tuple(
+                replace(frame, prompt_text="其它镜头" * 2000) if frame.id == first_start else frame
+                for frame in doc.keyframe_plan.keyframes
+            ),
+        )
+        assert execute_project_read(
+            replace(doc, keyframe_plan=longer_plan),
+            "project.get_workset",
+            {**request, "keyframe_context": "target", "if_hash": focused["hash"]},
+        )["unchanged"]
+        narrow = {**request, "keyframe_context": "target", "fact_keys": ["video_inputs"]}
+        view = execute_project_read(doc, "project.get_workset", narrow)
+        assert view["core_facts"] == {"video_inputs": facts["video_inputs"]}
+        assert "saved_keyframe_plan" in view["available_fact_keys"]
+        assert "workflow" not in view and "output_schema" not in view
+        assert execute_project_read(
+            doc, "project.get_workset", {**narrow, "if_hash": view["hash"]}
+        )["unchanged"]
+        with pytest.raises(ValueError, match="fact_keys"):
+            execute_project_read(doc, "project.get_workset", {**narrow, "fact_keys": ["invalid"]})
+
         assert len(saved["keyframes"]) == len({item["id"] for item in saved["keyframes"]})
         with pytest.raises(ValueError, match="前置Keyframe候选"):
             keyframe_workset(doc, second_segment.id)
@@ -467,6 +509,24 @@ def test_mcp_professional_reads_need_no_mutation_grant(tmp_path):
                     "read_professional_contract", {**base, "capability": cap}
                 )
                 assert not read.is_error
+                data = read.structured_content["data"]
+                assert [r["name"] for r in data["resources"]] == ["SKILL.md"]
+                assert "SKILL.md" in {r["name"] for r in data["resource_index"]}
+            name = "references/script-contract.md"
+            read = await client.call_tool(
+                "read_professional_contract",
+                {**base, "capability": "script", "resource_names": [name]},
+            )
+            data = read.structured_content["data"]
+            assert [r["name"] for r in data["resources"]] == [name]
+            entry = next(r for r in data["resource_index"] if r["name"] == name)
+            assert len(data["resources"][0]["text"].encode()) == entry["bytes"]
+            assert read_contract("script")["resources"][1] == data["resources"][0]
+            rejected = await client.call_tool(
+                "read_professional_contract",
+                {**base, "capability": "script", "resource_names": ["../SKILL.md"]},
+            )
+            assert rejected.is_error
             result = await client.call_tool(
                 "read_professional_workset", {**base, "capability": "script"}
             )

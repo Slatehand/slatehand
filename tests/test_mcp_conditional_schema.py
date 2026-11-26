@@ -12,6 +12,7 @@ from integrations.slatehand_mcp.app import (
     Read,
     WorksetRead,
     create_server,
+    published_tool_schema,
     tool_schema,
 )
 from integrations.slatehand_mcp.production_tools import MODELS, Assemble, Batch, GenerationAction
@@ -394,6 +395,29 @@ def test_typed_operation_unions_are_already_exact_discriminated_branches(name):
         definition = schema["$defs"][alternative["$ref"].removeprefix("#/$defs/")]
         assert definition["additionalProperties"] is False
         assert "const" in definition["properties"]["op"]
+
+
+def test_published_edit_script_only_reports_the_selected_operation_field():
+    validator = Draft202012Validator(published_tool_schema("edit_script", MODELS["edit_script"]))
+    args = {
+        **WRITE_BASE,
+        "scene_ids": [SCENE_ID],
+        "operations": [
+            {
+                "op": "update_segment_fields",
+                "segment_id": SEGMENT_ID,
+                "fields": {"duration_estimate_seconds": 0},
+            }
+        ],
+    }
+    (error,) = validator.iter_errors(args)
+    assert list(error.absolute_path) == ["operations", 0, "fields", "duration_estimate_seconds"]
+    assert error.validator == "minimum"
+    args["operations"][0]["fields"]["duration_estimate_seconds"] = 1
+    validator.validate(args)
+    args["operations"][0]["op"] = "replace_segment"
+    (error,) = validator.iter_errors(args)
+    assert list(error.absolute_path) == ["operations", 0, "op"]
 
 
 DETAILS_BASE = {"project_id": "a" * 32}

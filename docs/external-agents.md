@@ -189,7 +189,7 @@ MCP 约定：
 
 ## 专业能力
 
-七项专业能力以固定 Skill 包形式保存在 `core/director_proposals/skills/`，通过 `read_professional_contract` 交付（正文 + SHA-256）。
+七项专业能力以固定 Skill 包形式保存在 `core/director_proposals/skills/`，通过 `read_professional_contract` 交付。MCP 首读返回入口和资源目录（名称、字节数、SHA-256），用 `resource_names` 一次选择本任务所需资源；显式 null 领取全包。仅对已经读过的同一查询使用返回的 hash。
 Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
 
 | capability | Skill | 工作集 scope | 产出 |
@@ -210,13 +210,13 @@ Skill 是 Agent 的唯一规则来源，不依赖任何 Agent 品牌。
   需要越出授权范围时先说明。它是共享工作原则，不是第七个生产阶段。
 - 工作集返回当前 revision 的事实、输出 schema 与 provenance：
   - 图片写作统一遵守 `slatehand-image-prompt-writing`。地点与 Keyframe 契约默认附带 `global/` 下的该 Skill，
-    图片工作集的 `image_prompt.global_skills` 同样交付正文与哈希，`recipes` 补充当前模型标签。
+    图片工作集的 `image_prompt.global_skills` 提供资源索引与哈希，`recipes` 补充当前模型标签。
   - 随当前绑定插件发布的提示词 Skill 只在对应专业契约中交付全文
     （`plugin/<skill>/<file>` 资源）；工作集的 `plugin_skills` 只是目录（资源名、sha256、字节数）。契约可用 `if_hash` 缓存，
     逐 Segment 读取工作集不再重复传输 Skill 正文。
     有输入图时在 `prompt_text` 顶部逐图写“真实标签: 用途与保留边界”，空行后正文逐图引用，不写文件名；无图时只写正文。
     默认标签为 `<PictureN>`；插件可以约定别的标签（例如多图 `<imageN>`、单图“图片”）。
-  - Keyframe 工作集读取目标 Segment 所属完整 Scene 作上下文，并明确 `context_segment_ids` / `writable_segment_ids`
+  - MCP Keyframe 工作集指定 target_ids 时只交付目标 Segment 的正文、绑定、相关参考；需要整场及全项目参考索引时指定 `keyframe_context="scene"`。proposal 使用完整 Scene 上下文。局部读取可以用 `fact_keys` 选取所需事实，传空数组查看目录。工作集提供上下文，并明确 `context_segment_ids` / `writable_segment_ids`
     （`target_segment_ids` 与后者相同）、锁定节点、辅助图映射，以及按 Scene 裁剪的 `saved_keyframe_plan`（未建立时为
     `not_established`）。`scenes[].segments[]` 按顺序给出覆盖的 `shots[]`、派生可见角色与 `continues_from_previous`；
     Scene 给出可选 `location_id` / `state_id`，proposal 写 `segments[]`，每个 Segment 给 `frame_strategy=none|start|end|both`、启用端点计划与可选 `reference_images` 规划，以及

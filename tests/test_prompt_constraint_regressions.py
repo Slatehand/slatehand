@@ -23,7 +23,11 @@ def test_keyframe_contract_carries_location_decoupling_and_user_boundary():
 
 def test_keyframe_contract_treats_location_images_as_explicit_references():
     """地点图片只在本帧显式参考（或用户加入辅助参考）后才进入实际输入。"""
-    skill = read_contract("keyframe")["resources"][0]["text"]
+    skill = "\n".join(
+        r["text"]
+        for r in read_contract("keyframe")["resources"]
+        if r["name"] in {"SKILL.md", "references/frame-references.md"}
+    )
     for required in (
         "地点语义与图片",
         "start_reference_location_image_ids",
@@ -375,7 +379,12 @@ def test_video_and_keyframe_contracts_prioritize_ref2va_and_proactive_character_
             assert required in text, required
     assert "首尾帧只有该角色的局部" in video
     assert "首尾帧只有手部/背影/侧影/局部遮挡" in launcher
-    assert "视频阶段须用 Ref2VA 绑入对应角色造型图" in keyframe
+    references = next(
+        r["text"]
+        for r in read_contract("keyframe")["resources"]
+        if r["name"] == "references/frame-references.md"
+    )
+    assert "视频阶段须用 Ref2VA 绑入对应角色造型图" in keyframe + references
 
     combined = "\n".join((video, keyframe, launcher))
     for stale in (

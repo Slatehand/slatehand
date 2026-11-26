@@ -62,7 +62,7 @@ Scene、Shot、Segment、对白、旁白、动作结果或时长；若上游镜�
 [`references/cinematic-keyframe-design.md`](references/cinematic-keyframe-design.md)；
 撰写每张帧的画面正文前，必须阅读
 [`references/cinematic-frame-prompting.md`](references/cinematic-frame-prompting.md)。
-必须遵守全局 `slatehand-image-prompt-writing`（契约 `global/` 资源或工作集 `image_prompt.global_skills`）：
+必须遵守全局 `slatehand-image-prompt-writing`（从契约读取 `global/` 正文，工作集 `image_prompt.global_skills` 给出索引）：
 有输入图时把“逐图标签与用途 + 正文显式引用”完整写进提示词，不写文件名；没有输入图时只写画面正文。
 工作集 `image_prompt` 给出当前生图/改图插件的输入图指代约定；其 `plugin_skills` 目录非空时，正文写法还必须遵守
 随插件发布的专业 Skill（全文在本契约的 `plugin/` 资源中），它只改变正文的组织方式，不改变本 Skill 的画面决定。
@@ -71,7 +71,7 @@ Scene、Shot、Segment、对白、旁白、动作结果或时长；若上游镜�
 
 ## 设计顺序
 
-先读完整 Scene 作为上下文，答完开头三问后按以下顺序细化，proposal 只提交 schema。读取完整 Scene 不扩大本轮允许修改的 Segment 范围；
+整场规划读取完整 Scene；局部编辑先读取目标段，判断接续时补读相关相邻段。答完开头三问后按以下顺序细化，proposal 只提交 schema。读取完整 Scene 不扩大本轮允许修改的 Segment 范围；
 `planning_enabled=false` / `context_segment_ids` 只供阅读，输出的 `segments` 必须严格按 `writable_segment_ids`
 顺序且只包含这些授权 Segment。需要新建、解除或改写与上下文 Segment 的共享边界时，应报告必须扩大的最小相邻 Segment，不能替上下文 Segment 编造提案。
 `saved_keyframe_plan` 是当前 scope 内已经持久化的计划事实：共享 Keyframe 按 ID 去重，`bindings`
@@ -126,113 +126,8 @@ Scene、Shot、Segment、对白、旁白、动作结果或时长；若上游镜�
   已选关键帧本身也可以作为其他图片（`select_reference_image` 的 `source="keyframe"`），但不能重复当前已启用的首尾帧。
 - 其他图片无时间位置，按缺失信息选择最少必要图片，不必填满九张卡片；提交视频时实际使用的首尾帧与其他图片合计不得超过九张。规划不生成、不选择、不改已有视频绑定。
 
-## 相邻 Segment 的连续边界
-
-`continues_from_previous=true` 表示两边复用**同一张像素级关键帧**，不仅是剧情连续。只有摄影机位置、
-景别、构图、人物姿态、道具和光线状态在交接的同一时刻完全相同，而且需要锁定这一共同画面时才设置。普通正反打、切镜或明确换机位使用 `false`。
-一镜到底中的推近、绕行、拉远或景别变化发生在 Segment 内。要锁住交接时，先确定交接时刻的共同画面，再推演后续运动。
-遵循 `required_shared_boundaries` 和 Director 明确要求共用同一张图的交接。
-
-设置为 `true` 时，当前 Segment 的 `start_*` 字段必须为空：`start_prompt_text=""`、
-`start_visible_character_ids=[]`、`start_character_references=[]`、`start_reference_keyframe_ids=[]`；Core 沿用上一 Segment 的 `end_*`。
-每个 Scene 的第一个 Segment 必须为 `false`。
-
-明确切镜时，`continues_from_previous=false`。后段确需锁定开场画面时，才启用独立首帧并填写 `start_*` 描述。
-
-当 Core 提供 `required_shared_boundaries` 时，表示 Director 已把本轮采用的连续镜头方案解析成必须共用的
-时间边界，列出的是相邻 Segment 对。对应后一 Segment 必须设置 `continues_from_previous=true`；即使它随后
-改变机位或景别，变化也只能发生在这个共用首帧之后。不得把该硬约束降级为仅保持人物、道具、光线或轴线状态相似。
-
-共享同一图片只约束交接画面，不保证运动自动无缝；还要沿原脚本核对动作阶段、运动方向和摄影机运动的衔接。
-
-### 同一 Shot 拆段：延续段不重新设计
-
-工作集 `scenes[].segments[]` 的 `continues_from_previous=true` 表示该 Segment 与上一段覆盖同一个边界 Shot，
-`boundary_reason` 是脚本记录的拆段原因。`model_constraint` 表示只因模型时长或对白条数上限把同一个镜头切成几段：
-机位、景别、构图、空间与光线都不变，人物的表情、视线、手势和小幅走位是视频要演的过程，不是后段首帧需要
-重新设计的理由。不要按后段的对白语气为它的首帧另编一个表演瞬间，
-否则同一个镜头会在拼接处换成另一张独立生成的画面，背景、陈设和光线随之漂移。也不能借后段首帧改写
-已批准的景别或机位（例如把固定双人中景改成单人反打近景）。
-
-确需启用后段首帧时，按“共享 → 抽帧 → 复用 → 参考重生成”的顺序取来源。抽帧规则见下一小节：
-
-- **建议复用**：不便抽帧、或用户想先用静帧排完整段时，把 `start_reuse_keyframe_id` 设为同一 Shot 中最近一张
-  已规划的帧（通常是上一段首帧），来源可以尚未选图；正文写成与来源相同的画面。批量生成跳过本帧并等待来源选定，
-  之后用 `select_keyframe_candidate(source="keyframe")` 选入同一张图。
-- **参考来源重新生成**：只有脚本在这个边界明确写了大位移、换机位或景别变化，才独立设计首帧；来源已选图时写进
-  `start_reference_keyframe_ids`，正文写清保留什么、改变什么。
-
-尾帧同理：同一镜头内的尾帧与本段首帧或同 Shot 其它帧画面相同时，用 `end_reuse_keyframe_id` 指向来源。
-同一帧的抽帧与复用只能二选一。已有计划要补设或取消复用建议时，用 `edit_keyframes` 的
-`update_frame_fields.fields.reuse_keyframe_id`（`null` 取消），不必重新规划。
-
-#### 建议抽帧
-
-相邻 Segment 连续且后段确需锁定首帧时，如果上一段没有可共享的尾帧，用上一段视频的实际画面承接手势、视线、光线与道具。按交接时刻写 `start_prompt_text` 作为审核依据，并设置
-`start_extraction_suggested=true`：关键帧卡显示“建议抽帧”，批量生成跳过这一帧。在回复里说明
-这一帧等上一段视频选定后抽帧（人类用首帧卡“从上一 seg 抽取”，Agent 用 `generate_media(kind="frame_extraction")`）。这只是建议，用户要求直接生成时照常生成。已有计划要补标或取消标记时，用
-`edit_keyframes` 的 `update_frame_fields.fields.extraction_suggested`，不必重新规划。
-
-## 实际视频输入边界
-
-其他图片的规划、读取、生成与选图流程见项目提示（`save_reference_image_plan`、`video_inputs`、
-`generate_media(kind="reference_image")`、`select_reference_image`）；只有用户明确要求时才生成，选入卡片后才进入视频输入。
-从资产库直接绑定的图片可能没有生图计划，仍要按 `reference_inputs` 读取，不能因没有 `reference_image_plans` 就忽略它。
-
-实际视频输入以 `video_inputs[].slots`、`require_any` 和 `reference_inputs` 为准：首尾槽位只提交已启用且已选的图，独立参考按当前 recipe 显式绑定。
-FL2VA 至少需一个边界帧。Ref2VA 可关闭首尾帧，图片、音频与视频参考合计至少需要一项实际输入。切换 recipe 使用独立的视频命令；关键帧 proposal 只提交当前 recipe 支持的计划。
-用于生图的角色造型、地点图片和辅助图只影响生图，不自动成为视频输入；独立参考不承诺精确的起止构图。
-规划阶段不能声称已审看未生成的图；生成后实际画面若遗漏必要主体或空间，必须先审核修正该图或补绑参考图。
-
-## 可见角色与参考约束
-
-- 每张帧只列该静态时刻真正可见的角色 ID；未出现的角色不得为了“保持一致”而加入。
-- Segment 的可见角色是覆盖 Shot 的并集；段内切换后仍可见的角色都可出现在首/尾帧。
-- 共享边界时允许使用两侧 Segment 的角色并集，即使该角色在另一侧随后离开。
-- 空镜返回空数组。
-- 每张帧用 `start_character_references` / `end_character_references` 为可见角色选择本帧使用的造型：
-  `[{character_id, look_id}]`，`look_id` 只能取自工作集 `visible_characters[].looks[].look_id`；`look_id: null`
-  表示本帧不提交该角色的图。造型对应不同时期、服装或身体状态，按 `usage`（使用场合）与本帧所处剧情时刻选匹配的那一套。
-- 角色只有一套造型时可以不列出该角色，Core 默认使用它；有多套造型时必须列出并选择，否则 Core 拒绝生成该帧。
-  工作集同时给出造型的 `selected_asset_id` 与派生状态 `has_image`；需要核对角色外观时，用
-  `read_media_input(asset_id=selected_asset_id)` 读取已选造型图。`selected_asset_id` 为 null（即 `has_image` 为 false）时
-  该帧无法生成，提醒用户先为该造型设置造型图。
-- Core 只提交所选造型的造型图，并在 `reference_mapping` 中标明角色与造型名；未列入可见角色的角色不得提交。
-  角色造型图、前置帧与辅助参考合计最多 5 张输入图，多角色同框时尤其要精简选择。
-- 用户在关键帧计划弹窗中选择的项目图片属于额外辅助参考，不替代角色卡身份参考。
-
-## 参考其它已选关键帧
-
-- 工作集 `referenceable_keyframes` 是全项目**已有选中图**的 Keyframe 索引（ID、所在 Scene/Segment/槽位、可见角色）。
-  只有这些帧可被参考；只有候选、尚未选定的帧不能参考，因为最终选哪张未定。确实要参考某帧时，用
-  `read_details(kind="keyframe", ids=[...])` 读取它的画面正文，不必为每个候选都读。
-- 可选字段 `start_reference_keyframe_ids` / `end_reference_keyframe_ids`（各 0–4 个，不含本帧）让本帧生图时附带
-  这些帧的**当前**选中图，作为“参考关键帧”输入，排在前置帧之后、辅助图之前。
-- 用于跨 Segment 保持同一空间、人物状态、道具或光线：例如回到同一机位、同一房间的另一角度、换场后人物服装与伤痕延续。
-  先用 `read_media_input` 审看被参考帧的实际图片，再在正文里写清该参考图要保留什么、改变什么；不要把参考当成复刻。
-- 下游帧可在上游选定后用 `edit_keyframes` 的 `update_frame_fields.fields.reference_keyframe_ids` 写入，与本 proposal 是同一字段。
-- 回切到画面与人物状态都没有变化的同一机位（例如多轮对话中重复出现的同一特写）时，后一帧不必重新设计：
-  正文写成与被复用帧相同的画面，并设置 `start_reuse_keyframe_id` / `end_reuse_keyframe_id` 指向它（来源可尚未选图）。
-  什么时候改为重新生成见 `slatehand-keyframe-sequence` 第 3 节。
-- 被参考帧之后被改选时，下游已生成候选只带 `inputs_outdated` 软提示；被参考帧撤销选择时，下游帧在其重新选定前不能生成，批次会把它列为等待项。
-
-## 地点语义与图片
-
-Scene 可以绑定一个语义地点与状态；Shot 和 Keyframe 都不绑定地点。工作集 `location_library` 给出当前 Scene 使用的地点、
-固定陈设、主光、状态和图片强制说明，`location_images` 是全项目地点图片索引，`referenceable=true` 表示可被本帧参考。
-要参考其它地点的图片时，先用 `read_details(kind="location_image", ids=[...])` 读取它的强制说明。
-Planner 应把这些事实与 Scene setting、Shot 构图和动作一起用于写出自洽空间，不能假设地点图片的机位会被复刻。
-地点是这一帧的背景事实，不是这一帧要展示的内容：不因地点里有门窗和家具就把它们放进画框，也不为保持地点一致而拉远。
-
-- 地点图片默认只是资料。需要它的实际画面约束空间时，在 `start_reference_location_image_ids` /
-  `end_reference_location_image_ids` 里列出其 `image_id`（各 0–4 个，只限 `referenceable=true` 的普通图片条目）；
-  Core 以“地点参考”角色提交其当前选中图并附带图片说明。全景图不能直接参考，需要时请用户先取景为普通子图。
-- 先用 `read_media_input` 审看图片并核对说明，在正文里写清这张图提供哪些空间、陈设或光线事实，以及本帧机位与它的差异；继承什么由本帧画框决定（见 `cinematic-frame-prompting.md` 第 1 节）。
-- 只在本帧确实需要从它取得光线、材质或空间事实时才参考地点图片，和角色造型图、前置帧、参考关键帧共享 5 张名额。
-- 没有地点图片、图片未选候选或没有合适视角时，仍应根据地点文字和镜头上下文完成画面设计，不把它报告为生成依赖缺口。
-- 图片的强制 `description` 是理解实际画面的依据；`prompt_text` 只是历史生成意图，不能当成图片已实现的事实。
-- Planner proposal 不新增或替换 Segment 辅助图；地点图片用上面的参考字段，`edit_keyframes` 的
-  `update_frame_fields.fields.reference_location_image_ids` 写同一字段。
+规划共享边界、拆段长镜头、抽帧或复用时，读取 [相邻 Segment 的连续边界](references/boundary-continuity.md)。
+选择视频 recipe、角色造型、地点或跨帧参考时，读取 [实际视频输入与参考](references/frame-references.md)。
 
 ## 输出前自检
 

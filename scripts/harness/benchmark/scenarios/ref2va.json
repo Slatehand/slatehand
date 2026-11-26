@@ -41,6 +41,7 @@
         "capability": "video_prompt",
         "scene_ids": "$base.scene_ids",
         "target_ids": "$base.segment_ids",
+        "fact_keys": ["context", "recipe_inputs", "dialogue_audio", "asset_inputs"],
         "page_bytes": 24576
       },
       "assert": {

@@ -33,7 +33,7 @@ proposal 可改用 `proposal_source={kind:"workspace_json", byte_count, sha256}`
 adapter 解析为对象后仍走同一 Core proposal 命令、revision CAS 和完整领域校验，文件本身不是项目事实。地点规划与引用库、脚本一样使用项目 scope：
 `read_professional_workset` / `read_professional_contract` 的 `capability="location"` 不带 `scene_ids`，`location_proposal` 的 request
 只有 `raw_user_instruction`，翻译为 `location.*_proposal`。`edit_script`、`edit_keyframes`、`edit_locations`、`edit_references` 发布严格的操作 schema：
-每个 `op` 分支同时公开嵌套字段形状、枚举和必填项，并由同一 runtime 模型校验；`edit_references` 翻译为 `reference.apply_operations`，字段形状随 reference_library 契约
+`operations.items` 以 op 枚举和标准 JSON Schema if/then 指向对应定义。每个 `op` 分支同时公开嵌套字段形状、枚举和必填项，并由同一 runtime 模型校验；`edit_references` 翻译为 `reference.apply_operations`，字段形状随 reference_library 契约
 （`references/library-edits.md`）下发；`edit_locations` 各操作的字段形状随 location 专业契约（`references/location-bible.md` 附录）下发。`edit_locations` 翻译为 `location.apply_operations`，顶层 `location_ids`、`scene_ids`
 组成 scope，不含候选采用；地点图片候选由 `select_location_image` 原样翻译为 `location.select_image`（`image_id` + `asset_id`）。`select_keyframe_candidate` 翻译为 `keyframe.select_candidate`，按 `source=generation|keyframe|asset` 把 `source_id` 改写为 `generation_id`（只限该 Keyframe 的成功、未隐藏图片候选）/ `source_keyframe_id`（另一 Keyframe 当前选中图）/ `asset_id`（任一项目图片）；`select_reference_image` 翻译为 `video.select_reference_image`，按 `source=generation|keyframe|asset` 把 `source_id` 改写为 `generation_id` / `keyframe_id` / `asset_id`，`source=remove` 改写为 `asset_id: null`；`select_dialogue_candidate` 原样翻译为 `dialogue.select_candidate`（`dialogue_line_id` + 该句 `dialogue_audio` 的 `generation_id`）。这四者与 `edit_references` 的 `select_look_image` / `select_voice` 是仅有的候选采用入口。`generate_media` 的 `look_sheet` 翻译为 `reference.generate_look_sheet`（`identity_asset_ids` 为 0–4 张身份参考，可选 `prompt_text`）；
 `voice` 翻译为 `reference.design_voice`（`target_id` 为角色卡或旁白身份 ID，旁白须给 `language`）；
@@ -78,7 +78,7 @@ adapter 解析为对象后仍走同一 Core proposal 命令、revision CAS 和�
 - `read_media_input` 校验受控 Asset 后同时返回原生 image/audio 内容块，供模型实际看图或听音；JSON 保存媒体清单与校验信息，图片字节不混入正文。读取失败时只返回错误。
 - 随当前绑定插件发布的提示词 Skill 全文只在 `read_professional_contract` 中（`plugin/` 资源，可用 `if_hash` 缓存）；工作集的
   `plugin_skills` 只是目录，单个 Segment 的视频工作集因此通常不分页。
-- `read_professional_contract` / `read_professional_workset` 在完整 JSON 超过 64 KiB 时进入 `json_utf8_chunks` 模式，单页 ≤ 24 KiB；续读必须
+- `read_professional_contract` / `read_professional_workset` 支持按资源名或事实字段读取。本次结果超过 page_bytes 或对象数量预算时进入 `json_utf8_chunks` 模式，每个正文块 ≤ page_bytes（默认 60 KiB）；续读必须
   沿用同一 project/capability/scope/target_ids/page_bytes 并携带 `next_cursor`，拼接后校验 `content_sha256` 再解析；cursor 只绑定内容，
   无关写入推进 revision 不影响续读。
 - `read_request` 查询 proposal request 时只返回紧凑状态与 `workset_recovery`；原始工作集用对应 proposal 的 get 恢复，最新事实用

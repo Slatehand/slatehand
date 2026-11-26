@@ -25,7 +25,13 @@ def prompt_skill_index(skills: list[dict]) -> list[dict]:
         {
             "name": skill["name"],
             "resources": [
-                {key: resource[key] for key in ("name", "sha256", "bytes")}
+                {
+                    "name": resource["name"],
+                    "sha256": resource["sha256"],
+                    "bytes": resource["bytes"]
+                    if "bytes" in resource
+                    else len(resource["text"].encode()),
+                }
                 for resource in skill["resources"]
             ],
         }

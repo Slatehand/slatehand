@@ -11,6 +11,7 @@ from core.director_proposals.reference_library_codec import REFERENCE_LIBRARY_OU
 from core.director_proposals.schema_gen import narration_language_schema
 from core.director_proposals.script_codec import _OUTPUT_SCHEMA as SCRIPT_SCHEMA
 from core.director_proposals.video_prompt import OUTPUT_SCHEMA as VIDEO_PROMPT_SCHEMA
+from core.model_providers.image_prompt_skill import prompt_skill_index
 
 from ..planning_inputs import (
     location_inputs,
@@ -21,7 +22,7 @@ from ..prompt_worksets import (
     image_prompt_guide,
     video_prompt_workset,
 )
-from .common import _exact_arguments, _ids, _json_value
+from .common import _MAX_RESULT_OBJECTS, _exact_arguments, _ids, _json_value, _object_count
 from .keyframe_worksets import keyframe_workset_facts
 from .proposal_scope import active_task_blocks_scenes, scene_ids_for_targets
 from .semantic_projection import build_semantic_projection, build_semantic_tree
@@ -38,7 +39,6 @@ _CAPABILITY_ACTION_NAMESPACE = {
 
 # 工作集按范围裁剪后通常一次返回；分页只兜底多 Scene 读取，
 # 页大小仍低于常见 Agent 的单次工具输出上限。
-_AGENT_RESULT_MAX_BYTES = 64 * 1024
 _AGENT_PAGE_BYTES = 60 * 1024
 _AGENT_MIN_PAGE_BYTES = 4 * 1024
 
@@ -97,7 +97,7 @@ def contract_read(document, arguments, *, provider_catalog=None):
     _exact_arguments(
         arguments,
         required={"capability"},
-        optional={"if_hash", "include"},
+        optional={"if_hash", "include", "resource_names"},
     )
     include = arguments.get("include", [])
     if not isinstance(include, list) or any(item != "consistency-review" for item in include):
@@ -107,6 +107,27 @@ def contract_read(document, arguments, *, provider_catalog=None):
     body = read_contract(
         arguments["capability"], include=tuple(include), provider_catalog=provider_catalog
     )
+    names = arguments.get("resource_names")
+    if names is not None:
+        resources = body["resources"]
+        known = {item["name"] for item in resources}
+        if (
+            not isinstance(names, list)
+            or any(not isinstance(name, str) or name not in known for name in names)
+            or len(names) != len(set(names))
+        ):
+            raise ValueError("resource_names 必须是当前契约目录中不重复的资源名。")
+        selected = set(names)
+        if "consistency-review" in include:
+            selected.add("shared/slatehand-consistency-review/SKILL.md")
+        body = {
+            **body,
+            "resource_index": [
+                {"name": r["name"], "sha256": r["sha256"], "bytes": len(r["text"].encode())}
+                for r in resources
+            ],
+            "resources": [r for r in resources if r["name"] in selected],
+        }
     digest = _content_hash(body)
     if_hash = _validate_if_hash(arguments.get("if_hash"))
     if if_hash is not None and if_hash == digest:
@@ -122,16 +143,21 @@ def contract_page_read(document, arguments, *, provider_catalog=None):
     _exact_arguments(
         arguments,
         required={"capability"},
-        optional={"if_hash", "include", "cursor", "page_bytes"},
+        optional={"if_hash", "include", "cursor", "page_bytes", "resource_names"},
     )
     query = {"capability": arguments["capability"]}
     if "if_hash" in arguments:
         query["if_hash"] = arguments["if_hash"]
+    if "resource_names" in arguments:
+        query["resource_names"] = arguments["resource_names"]
     if "include" in arguments:
         query["include"] = arguments["include"]
     return _agent_page(
         contract_read(document, query, provider_catalog=provider_catalog),
-        query={"project_id": document.project_id, "capability": arguments["capability"]},
+        query={
+            "project_id": document.project_id,
+            **{k: v for k, v in query.items() if k != "if_hash"},
+        },
         cursor=arguments.get("cursor"),
         page_bytes=arguments.get("page_bytes", _AGENT_PAGE_BYTES),
     )
@@ -177,6 +203,9 @@ def workset_read(
     instruction="",
     caller_id=None,
     for_proposal_request=False,
+    focused=False,
+    fact_keys=None,
+    for_agent_read=False,
 ):
     _exact_arguments(
         arguments,
@@ -254,6 +283,7 @@ def workset_read(
                 provider_recipes=provider_recipes,
                 provider_catalog=provider_catalog,
                 instruction=instruction,
+                focused=focused and targets is not None,
             )
             schema = keyframe_schema()
             provenance.extend(["keyframe_plan", "generations", "location_library"])
@@ -311,8 +341,21 @@ def workset_read(
         "provenance": {"authority": "project.json", "fields": provenance},
         "contract": {"capability": capability, "read_command": "project.get_contract"},
     }
+    if for_agent_read and "image_prompt" in facts:
+        guide = facts["image_prompt"]
+        guide["global_skills"] = prompt_skill_index(guide["global_skills"])
+    if fact_keys is not None:
+        if (
+            not isinstance(fact_keys, list)
+            or any(not isinstance(key, str) or key not in facts for key in fact_keys)
+            or len(fact_keys) != len(set(fact_keys))
+        ):
+            raise ValueError("fact_keys 必须是当前 core_facts 中不重复的字段名。")
+        result["available_fact_keys"] = list(facts)
+        result["core_facts"] = {key: facts[key] for key in fact_keys}
+        del result["output_schema"], result["workflow"]
     if_hash = _validate_if_hash(arguments.get("if_hash"))
-    if if_hash is not None:
+    if for_agent_read or if_hash is not None:
         digest = _content_hash(_without_revision(result))
         if if_hash == digest:
             return {
@@ -335,9 +378,22 @@ def workset_page_read(
     _exact_arguments(
         arguments,
         required={"capability", "scope"},
-        optional={"target_ids", "if_hash", "cursor", "page_bytes"},
+        optional={"target_ids", "if_hash", "cursor", "page_bytes", "keyframe_context", "fact_keys"},
     )
-    query = {key: value for key, value in arguments.items() if key not in {"cursor", "page_bytes"}}
+    context = arguments.get("keyframe_context")
+    if "keyframe_context" in arguments and (
+        context not in ("target", "scene")
+        or arguments["capability"] != "keyframe"
+        or not arguments.get("target_ids")
+    ):
+        raise ValueError(
+            "keyframe_context 仅用于带 target_ids 的 keyframe 读取，可选 target 或 scene。"
+        )
+    query = {
+        key: value
+        for key, value in arguments.items()
+        if key not in {"cursor", "page_bytes", "keyframe_context", "fact_keys"}
+    }
     return _agent_page(
         workset_read(
             document,
@@ -345,8 +401,14 @@ def workset_page_read(
             provider_recipes=provider_recipes,
             provider_catalog=provider_catalog,
             caller_id=caller_id,
+            focused=context == "target",
+            fact_keys=arguments.get("fact_keys"),
+            for_agent_read=True,
         ),
-        query={"project_id": document.project_id, **query},
+        query={
+            "project_id": document.project_id,
+            **{k: v for k, v in arguments.items() if k not in {"cursor", "if_hash", "page_bytes"}},
+        },
         cursor=arguments.get("cursor"),
         page_bytes=arguments.get("page_bytes", _AGENT_PAGE_BYTES),
     )
@@ -361,9 +423,13 @@ def _agent_page(result, *, query, cursor, page_bytes):
         raise ValueError(
             f"page_bytes 必须是 {_AGENT_MIN_PAGE_BYTES} 到 {_AGENT_PAGE_BYTES} 的整数。"
         )
-    if cursor is None and (
-        len(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-        <= _AGENT_RESULT_MAX_BYTES
+    if (
+        cursor is None
+        and _object_count(result) <= _MAX_RESULT_OBJECTS
+        and (
+            len(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            <= page_bytes
+        )
     ):
         return result
     # 分页正文不含 revision 字段（由页头 observation_revision 给出），cursor 只绑定内容。

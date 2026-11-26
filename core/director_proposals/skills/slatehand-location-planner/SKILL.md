@@ -37,8 +37,7 @@ description: 从完整结构化脚本规划跨 Scene 共享的地点语义、状
 
 ## 图片规则
 
-- 图片提示词必须遵守全局 `slatehand-image-prompt-writing`，由契约 `global/` 资源及工作集 `image_prompt.global_skills`
-  交付。有输入图时逐张写真实标签与用途，正文逐张明确引用；没有输入图时只写画面正文。
+- 图片提示词必须遵守全局 `slatehand-image-prompt-writing`，从契约目录按名称读取 `global/` 正文，工作集 `image_prompt.global_skills` 提供索引。有输入图时逐张写真实标签与用途，正文逐张明确引用；没有输入图时只写画面正文。
 - 每张地点图片都是独立条目，有自己的 `name`、`kind`、强制 `description`、可选 `prompt_text`、
   `reference_asset_ids` 与人类选定的候选。
 - `description` 是人或 Agent 根据图片实际内容填写的纯文本说明，必须能让后来者不看生成提示词也理解画面；不得只复制

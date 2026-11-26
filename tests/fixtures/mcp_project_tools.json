@@ -891,50 +891,242 @@
         },
         "operations": {
           "items": {
-            "oneOf": [
+            "allOf": [
               {
-                "$ref": "#/$defs/insert_shot"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_scene"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_scene"
+                }
               },
               {
-                "$ref": "#/$defs/update_scene_fields"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_segment"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_segment"
+                }
               },
               {
-                "$ref": "#/$defs/insert_scene"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_shot"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_shot"
+                }
               },
               {
-                "$ref": "#/$defs/move_scene"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "insert_scene"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/insert_scene"
+                }
               },
               {
-                "$ref": "#/$defs/delete_scene"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "insert_segment"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/insert_segment"
+                }
               },
               {
-                "$ref": "#/$defs/merge_adjacent_scenes"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "insert_shot"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/insert_shot"
+                }
               },
               {
-                "$ref": "#/$defs/update_shot_fields"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "merge_adjacent_scenes"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/merge_adjacent_scenes"
+                }
               },
               {
-                "$ref": "#/$defs/delete_shot"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "merge_adjacent_segments"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/merge_adjacent_segments"
+                }
               },
               {
-                "$ref": "#/$defs/update_segment_fields"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "move_scene"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/move_scene"
+                }
               },
               {
-                "$ref": "#/$defs/insert_segment"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "move_segment"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/move_segment"
+                }
               },
               {
-                "$ref": "#/$defs/move_segment"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "split_segment"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/split_segment"
+                }
               },
               {
-                "$ref": "#/$defs/delete_segment"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_scene_fields"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_scene_fields"
+                }
               },
               {
-                "$ref": "#/$defs/split_segment"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_segment_fields"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_segment_fields"
+                }
               },
               {
-                "$ref": "#/$defs/merge_adjacent_segments"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_shot_fields"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_shot_fields"
+                }
               }
-            ]
+            ],
+            "properties": {
+              "op": {
+                "enum": [
+                  "delete_scene",
+                  "delete_segment",
+                  "delete_shot",
+                  "insert_scene",
+                  "insert_segment",
+                  "insert_shot",
+                  "merge_adjacent_scenes",
+                  "merge_adjacent_segments",
+                  "move_scene",
+                  "move_segment",
+                  "split_segment",
+                  "update_scene_fields",
+                  "update_segment_fields",
+                  "update_shot_fields"
+                ]
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "type": "object"
           },
           "maxItems": 100,
           "minItems": 1,
@@ -1368,26 +1560,114 @@
         },
         "operations": {
           "items": {
-            "oneOf": [
+            "allOf": [
               {
-                "$ref": "#/$defs/update_frame_fields"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "bind_slot"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/bind_slot"
+                }
               },
               {
-                "$ref": "#/$defs/set_activation"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "set_activation"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/set_activation"
+                }
               },
               {
-                "$ref": "#/$defs/set_aux_references"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "set_aux_references"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/set_aux_references"
+                }
               },
               {
-                "$ref": "#/$defs/bind_slot"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "share_boundary"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/share_boundary"
+                }
               },
               {
-                "$ref": "#/$defs/share_boundary"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "split_boundary"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/split_boundary"
+                }
               },
               {
-                "$ref": "#/$defs/split_boundary"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_frame_fields"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_frame_fields"
+                }
               }
-            ]
+            ],
+            "properties": {
+              "op": {
+                "enum": [
+                  "bind_slot",
+                  "set_activation",
+                  "set_aux_references",
+                  "share_boundary",
+                  "split_boundary",
+                  "update_frame_fields"
+                ]
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "type": "object"
           },
           "maxItems": 100,
           "minItems": 1,
@@ -1839,44 +2119,210 @@
         },
         "operations": {
           "items": {
-            "oneOf": [
+            "allOf": [
               {
-                "$ref": "#/$defs/create_location"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "bind_scene"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/bind_scene"
+                }
               },
               {
-                "$ref": "#/$defs/update_location"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "clear_image_selection"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/clear_image_selection"
+                }
               },
               {
-                "$ref": "#/$defs/delete_location"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "create_image"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/create_image"
+                }
               },
               {
-                "$ref": "#/$defs/upsert_fixture"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "create_location"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/create_location"
+                }
               },
               {
-                "$ref": "#/$defs/delete_fixture"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_fixture"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_fixture"
+                }
               },
               {
-                "$ref": "#/$defs/upsert_state"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_image"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_image"
+                }
               },
               {
-                "$ref": "#/$defs/delete_state"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_location"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_location"
+                }
               },
               {
-                "$ref": "#/$defs/create_image"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_state"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_state"
+                }
               },
               {
-                "$ref": "#/$defs/update_image"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_image"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_image"
+                }
               },
               {
-                "$ref": "#/$defs/delete_image"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_location"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_location"
+                }
               },
               {
-                "$ref": "#/$defs/bind_scene"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "upsert_fixture"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/upsert_fixture"
+                }
               },
               {
-                "$ref": "#/$defs/clear_image_selection"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "upsert_state"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/upsert_state"
+                }
               }
-            ]
+            ],
+            "properties": {
+              "op": {
+                "enum": [
+                  "bind_scene",
+                  "clear_image_selection",
+                  "create_image",
+                  "create_location",
+                  "delete_fixture",
+                  "delete_image",
+                  "delete_location",
+                  "delete_state",
+                  "update_image",
+                  "update_location",
+                  "upsert_fixture",
+                  "upsert_state"
+                ]
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "type": "object"
           },
           "maxItems": 100,
           "minItems": 1,
@@ -2395,41 +2841,194 @@
         },
         "operations": {
           "items": {
-            "oneOf": [
+            "allOf": [
               {
-                "$ref": "#/$defs/add_character"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "add_character"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/add_character"
+                }
               },
               {
-                "$ref": "#/$defs/update_character"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "add_look"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/add_look"
+                }
               },
               {
-                "$ref": "#/$defs/delete_character"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "clear_look_image"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/clear_look_image"
+                }
               },
               {
-                "$ref": "#/$defs/add_look"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "clear_voice"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/clear_voice"
+                }
               },
               {
-                "$ref": "#/$defs/update_look"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_character"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_character"
+                }
               },
               {
-                "$ref": "#/$defs/delete_look"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "delete_look"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/delete_look"
+                }
               },
               {
-                "$ref": "#/$defs/select_look_image"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "select_look_image"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/select_look_image"
+                }
               },
               {
-                "$ref": "#/$defs/clear_look_image"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "select_voice"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/select_voice"
+                }
               },
               {
-                "$ref": "#/$defs/select_voice"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_character"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_character"
+                }
               },
               {
-                "$ref": "#/$defs/clear_voice"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_look"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_look"
+                }
               },
               {
-                "$ref": "#/$defs/update_narrator"
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "update_narrator"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "$ref": "#/$defs/update_narrator"
+                }
               }
-            ]
+            ],
+            "properties": {
+              "op": {
+                "enum": [
+                  "add_character",
+                  "add_look",
+                  "clear_look_image",
+                  "clear_voice",
+                  "delete_character",
+                  "delete_look",
+                  "select_look_image",
+                  "select_voice",
+                  "update_character",
+                  "update_look",
+                  "update_narrator"
+                ]
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "type": "object"
           },
           "maxItems": 64,
           "minItems": 1,
@@ -4032,7 +4631,7 @@
     "name": "read_details"
   },
   {
-    "description": "按固定能力读取完整 Skill 与参考；支持 if_hash 内容协商，不接受文件路径。",
+    "description": "默认返回 SKILL.md 与 resource_index；按目录用 resource_names 批量读取所需正文，null 取全包。同一查询可用 if_hash。",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -4101,6 +4700,19 @@
         "project_id": {
           "pattern": "^[0-9a-f]{32}$",
           "type": "string"
+        },
+        "resource_names": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -4112,7 +4724,7 @@
     "name": "read_professional_contract"
   },
   {
-    "description": "读取当前 revision 的专业事实与输出 schema；支持 if_hash 内容协商，不创建 run。",
+    "description": "读取专业事实与输出 schema；指定 keyframe target_ids 默认只读目标，用 keyframe_context=scene 展开整场和全项目参考索引。局部操作用 fact_keys 只取所需 core_facts，[] 列目录。支持 if_hash。",
     "inputSchema": {
       "additionalProperties": false,
       "oneOf": [
@@ -4124,6 +4736,9 @@
                 "reference_library",
                 "script"
               ]
+            },
+            "keyframe_context": {
+              "type": "null"
             },
             "scene_ids": {
               "items": {
@@ -4142,10 +4757,10 @@
         {
           "properties": {
             "capability": {
-              "enum": [
-                "narration",
-                "keyframe"
-              ]
+              "const": "narration"
+            },
+            "keyframe_context": {
+              "type": "null"
             },
             "scene_ids": {
               "items": {
@@ -4173,9 +4788,62 @@
           ]
         },
         {
+          "if": {
+            "properties": {
+              "keyframe_context": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "keyframe_context"
+            ]
+          },
+          "properties": {
+            "capability": {
+              "const": "keyframe"
+            },
+            "scene_ids": {
+              "items": {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "target_ids": {
+              "items": {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "scene_ids"
+          ],
+          "then": {
+            "properties": {
+              "target_ids": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "target_ids"
+            ]
+          }
+        },
+        {
           "properties": {
             "capability": {
               "const": "video_prompt"
+            },
+            "keyframe_context": {
+              "type": "null"
             },
             "scene_ids": {
               "items": {
@@ -4237,6 +4905,19 @@
             }
           ]
         },
+        "fact_keys": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "idempotency_key": {
           "maxLength": 200,
           "minLength": 1,
@@ -4246,6 +4927,20 @@
           "anyOf": [
             {
               "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyframe_context": {
+          "anyOf": [
+            {
+              "enum": [
+                "target",
+                "scene"
+              ],
               "type": "string"
             },
             {
@@ -4363,6 +5058,9 @@
                 "reference_library",
                 "script"
               ]
+            },
+            "keyframe_context": {
+              "type": "null"
             },
             "payload": {
               "oneOf": [

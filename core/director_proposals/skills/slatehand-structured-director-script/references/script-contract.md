@@ -61,7 +61,7 @@ Segment 与 Shot 平级写在 `scenes[].segments[]`，Shot 本身没有 `segment
 `shot_indexes`（本 Scene `shots` 数组的序号）按顺序声明覆盖的 Shot：非空、不重复、连续，按顺序恰好覆盖本 Scene
 全部 Shot；相邻 Segment 只允许共享边界 Shot（前一段最后一个 = 后一段第一个），共享即延续。
 一个 Segment 可以覆盖多个相邻 Shot（段内切镜），一个 Shot 也可以跨多个相邻 Segment（长镜头拆段）。
-改稿里的 `replace_scene` 同样用本 Scene 新 `shots` 数组的序号。
+局部编辑已有 Segment 时，按 edit_script 的操作 schema 引用实际 Shot ID。
 
 先设计 Shot 列表，再打包成 Segment。打包决定生产边界，不改变 Shot 设计：拆 Segment 不新增、不合并、不重写
 Shot；同一 Shot 跨多个 Segment 时是同一连续镜头的生产切片。按以下规则打包：
@@ -140,10 +140,8 @@ Narration Scene 的 Segment 时长在 TTS 之后规划，Core 随写入按真实
 
 ## 持续改稿
 
-每次改稿都使用 Core 在本轮 `<core-script-context>` 中内联的只读事实。不要调用工具补读文件，不要依赖
-Thread 中的旧脚本判断当前事实，也不要输出完整 state。结果必须是类型化局部操作：现有 Scene
-使用 `replace_scene`，单个 Segment 使用 `replace_segment`，Scene 结构变化使用显式插入、删除或移动操作，
-不能从结果缺失项推断删除。现有层级沿用输入 ID；新增层级返回 null ID；`replace_scene` / `replace_segment`
-的 Segment 一律用本 Scene 新 `shots` 数组的序号表达覆盖。`reply_markdown` 只简要说明实际修改；新建或整体重写 drama Scene 时，每个 Scene 用一两句白话写导演阐述：
+从 `read_story` 读取目标后，按 `edit_script.operations` 的当前 schema 提交。Scene 字段用
+`update_scene_fields`，Segment 字段用 `update_segment_fields`，只填目标 ID 与要修改的 `fields`。
+插入、删除、移动通过对应显式操作表达。新建或整体重写 drama Scene 时，每个 Scene 用一两句白话写导演阐述：
 这场戏是谁的、转折在哪、最重的镜头是哪个。打包有变化时同时说明哪些镜头组合并进一个 Segment、哪些长镜头
 拆成相邻 Segment、为什么。

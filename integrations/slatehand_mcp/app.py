@@ -183,6 +183,8 @@ def supplied_proposal_fields(request: "Proposal") -> set[str]:
 
 
 class ContractRead(ReadRequest):
+    resource_names: list[str] | None = Field(default_factory=lambda: ["SKILL.md"])
+
     capability: Capability
     if_hash: str | None = Field(
         default=None,
@@ -209,6 +211,9 @@ class SubmitProposal(Request):
 
 
 class WorksetRead(ReadRequest):
+    fact_keys: list[str] | None = None
+    keyframe_context: Literal["target", "scene"] | None = None
+
     capability: WorksetCapability
     if_hash: str | None = Field(
         default=None,
@@ -229,6 +234,10 @@ class WorksetRead(ReadRequest):
             self.target_ids is not None and len(self.target_ids) != len(set(self.target_ids))
         ):
             raise ValueError("workset scope/target_ids 不能重复。")
+        if self.keyframe_context is not None and (
+            self.capability != "keyframe" or not self.target_ids
+        ):
+            raise ValueError("keyframe_context 仅用于带 target_ids 的 keyframe 读取。")
         if self.capability in PROJECT_CAPABILITIES:
             if self.scene_ids or self.target_ids is not None:
                 raise ValueError("项目级专业能力不接受 scene_ids 或 target_ids。")
@@ -453,6 +462,7 @@ def _submit_proposal_branches() -> list[dict[str, object]]:
     return [
         {
             "properties": {
+                "keyframe_context": {"type": "null"},
                 "capability": {"enum": sorted(PROJECT_CAPABILITIES)},
                 "payload": payload("script_proposal"),
             }
@@ -539,6 +549,7 @@ def _workset_branches(schema):
     return [
         {
             "properties": {
+                "keyframe_context": {"type": "null"},
                 "capability": {"enum": sorted(PROJECT_CAPABILITIES)},
                 "scene_ids": empty_scene_ids,
                 "target_ids": {"type": "null"},
@@ -546,7 +557,8 @@ def _workset_branches(schema):
         },
         {
             "properties": {
-                "capability": {"enum": ["narration", "keyframe"]},
+                "capability": {"const": "narration"},
+                "keyframe_context": {"type": "null"},
                 "scene_ids": scoped_scene_ids,
                 "target_ids": target_ids,
             },
@@ -554,7 +566,21 @@ def _workset_branches(schema):
         },
         {
             "properties": {
+                "capability": {"const": "keyframe"},
+                "scene_ids": scoped_scene_ids,
+                "target_ids": target_ids,
+            },
+            "required": ["scene_ids"],
+            "if": {
+                "properties": {"keyframe_context": {"type": "string"}},
+                "required": ["keyframe_context"],
+            },
+            "then": {"required": ["target_ids"], "properties": {"target_ids": {"type": "array"}}},
+        },
+        {
+            "properties": {
                 "capability": {"const": "video_prompt"},
+                "keyframe_context": {"type": "null"},
                 "scene_ids": scoped_scene_ids,
                 "target_ids": _array_property(schema, "target_ids", minimum=1, maximum=1),
             },
@@ -565,7 +591,9 @@ def _workset_branches(schema):
 
 def _response_text_blocks(result: dict[str, object]) -> list[TextContent]:
     """text 始终携带完整 JSON：只读 text 的客户端（如 AGY）不能退化成读不到数据。"""
-    return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+    return [
+        TextContent(type="text", text=json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+    ]
 
 
 def _arguments_error(
@@ -616,7 +644,7 @@ def _prune_schema(value: object, *, property_names: bool = False) -> object:
     """去掉注解关键字；`properties` 下的键是字段名，即使叫 description 也必须保留。
 
     `discriminator` 是 OpenAPI 关键字，部分模型的函数调用 schema 不认识；
-    `oneOf` 与各分支的 `op.const` 已足以表达判别，运行时仍按 `op` 判别。
+    编辑工具通过条件 schema 按 op 分派；运行时使用 Pydantic 判别联合。
     """
     if isinstance(value, dict):
         return {
@@ -660,6 +688,22 @@ def _compact_operation_schema(schema: dict[str, object]) -> dict[str, object]:
         return schema
     compact = dict(schema)
     compact["$defs"] = {**definitions, **operations}
+    # JSON Schema 客户端先按 op 匹配，再只校验对应模型。Pydantic 同样使用 op。
+    items = schema["properties"]["operations"]["items"]
+    mapping = items["discriminator"]["mapping"]
+    item_schema = {
+        "type": "object",
+        "properties": {"op": {"enum": list(mapping)}},
+        "required": ["op"],
+        "allOf": [
+            {"if": {"properties": {"op": {"const": op}}, "required": ["op"]}, "then": {"$ref": ref}}
+            for op, ref in mapping.items()
+        ],
+    }
+    compact["properties"] = {
+        **schema["properties"],
+        "operations": {**schema["properties"]["operations"], "items": item_schema},
+    }
     return compact
 
 
@@ -884,10 +928,13 @@ def create_server(
             "从完整脚本规划地点库与 Scene/Shot 绑定；request 后由当前 Agent 编写并 submit。"
         ),
         "read_professional_contract": (
-            "按固定能力读取完整 Skill 与参考；支持 if_hash 内容协商，不接受文件路径。"
+            "默认返回 SKILL.md 与 resource_index；"
+            "按目录用 resource_names 批量读取所需正文，null 取全包。同一查询可用 if_hash。"
         ),
         "read_professional_workset": (
-            "读取当前 revision 的专业事实与输出 schema；支持 if_hash 内容协商，不创建 run。"
+            "读取专业事实与输出 schema；指定 keyframe target_ids 默认只读目标，"
+            "用 keyframe_context=scene 展开整场和全项目参考索引。"
+            "局部操作用 fact_keys 只取所需 core_facts，[] 列目录。支持 if_hash。"
         ),
         "read_story": (
             "按 level 的公开 oneOf 契约读取故事；outline 使用项目 scope，"
@@ -1006,6 +1053,12 @@ def create_server(
                     else {"scene_ids": request.scene_ids},
                     "page_bytes": request.page_bytes,
                 }
+                if request.fact_keys is not None:
+                    arguments["fact_keys"] = request.fact_keys
+                if request.keyframe_context is not None:
+                    arguments["keyframe_context"] = request.keyframe_context
+                elif request.capability == "keyframe" and request.target_ids:
+                    arguments["keyframe_context"] = "target"
                 if request.target_ids is not None:
                     arguments["target_ids"] = request.target_ids
                 if request.if_hash is not None:
@@ -1020,6 +1073,8 @@ def create_server(
                 }
                 if request.if_hash is not None:
                     arguments["if_hash"] = request.if_hash
+                if request.resource_names is not None:
+                    arguments["resource_names"] = request.resource_names
                 if request.include:
                     arguments["include"] = request.include
                 if request.cursor is not None:
@@ -1162,8 +1217,9 @@ def create_server(
             "用 proposal_source 的 byte_count 与 sha256 提交，不要内联或传任意路径；"
             "工作区文件只是不受信传输缓冲，Core 仍完整校验并原子落库。"
             "取消 proposal 使用显式 cancel；传输取消不表示业务回滚。"
-            "读取专业契约前先调用 read_workflow 获取 contract_hashes[capability]，"
-            "再带 if_hash 调用 read_professional_contract；"
+            "首次直接读取 read_professional_contract，"
+            "再从 resource_index 按本次任务选取 resource_names。"
+            "只有缓存了同一查询的正文才传其 if_hash；"
             "返回 unchanged 时复用本地已读 resources。"
             "契约读取与 consistency-review 的规则以 core/director_proposals/skills/README.md "
             "为单一事实源；默认契约不含 consistency-review，需要时显式 "

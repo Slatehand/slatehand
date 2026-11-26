@@ -10,8 +10,8 @@
     ]
   },
   "environment": {
-    "date": "2026-11-25",
-    "git_sha": "29a66ffed578a574566f915f0af6d279c1fc8665",
+    "date": "2026-11-26",
+    "git_sha": "c7bb63679a56eff99a7064fc127d9eb1a3f293bb",
     "python_version": "3.12.12",
     "platform": "macOS-26.6.2-arm64-arm-64bit",
     "driver": "scripts/harness/benchmark/fake_agent_driver.py"
@@ -20,25 +20,25 @@
     "scenario_total_multiplier": 1.0
   },
   "frozen": {
-    "tools_list_bytes": 57368,
+    "tools_list_bytes": 62929,
     "scenarios": {
       "h3": {
-        "total_wire_bytes": 35367
+        "total_wire_bytes": 29086
       },
       "keyframe": {
-        "total_wire_bytes": 126536
+        "total_wire_bytes": 72773
       },
       "location": {
-        "total_wire_bytes": 60902
+        "total_wire_bytes": 37084
       },
       "ref2va": {
-        "total_wire_bytes": 36735
+        "total_wire_bytes": 30454
       },
       "reference": {
-        "total_wire_bytes": 31856
+        "total_wire_bytes": 20863
       },
       "script": {
-        "total_wire_bytes": 80823
+        "total_wire_bytes": 29617
       }
     }
   },
@@ -47,14 +47,14 @@
       "capability": "video_prompt",
       "bootstrap": "keyframes",
       "summary": {
-        "tools_list_bytes": 57368,
+        "tools_list_bytes": 62929,
         "tool_count": 32,
         "requests": 6,
-        "input_bytes": 1527,
-        "output_bytes": 33840,
-        "total_wire_bytes": 35367,
-        "contract_read_bytes": 12299,
-        "workset_read_bytes": 10287,
+        "input_bytes": 1599,
+        "output_bytes": 27487,
+        "total_wire_bytes": 29086,
+        "contract_read_bytes": 12307,
+        "workset_read_bytes": 3998,
         "pagination_rounds": 6,
         "wait_rounds": 1,
         "error_responses": 0
@@ -77,7 +77,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 157,
-          "output_bytes": 12142,
+          "output_bytes": 12150,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -87,8 +87,8 @@
           "step": "workset",
           "tool": "read_professional_workset",
           "action": "pages",
-          "input_bytes": 255,
-          "output_bytes": 10032,
+          "input_bytes": 327,
+          "output_bytes": 3671,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -132,14 +132,14 @@
       "capability": "keyframe",
       "bootstrap": "unlocked",
       "summary": {
-        "tools_list_bytes": 57368,
+        "tools_list_bytes": 62929,
         "tool_count": 32,
         "requests": 8,
         "input_bytes": 2019,
-        "output_bytes": 124517,
-        "total_wire_bytes": 126536,
-        "contract_read_bytes": 59581,
-        "workset_read_bytes": 32459,
+        "output_bytes": 70754,
+        "total_wire_bytes": 72773,
+        "contract_read_bytes": 17856,
+        "workset_read_bytes": 20421,
         "pagination_rounds": 8,
         "wait_rounds": 1,
         "error_responses": 0
@@ -162,7 +162,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 159,
-          "output_bytes": 59422,
+          "output_bytes": 17697,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -173,7 +173,7 @@
           "tool": "read_professional_workset",
           "action": "pages",
           "input_bytes": 207,
-          "output_bytes": 15800,
+          "output_bytes": 9781,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -206,7 +206,7 @@
           "tool": "read_professional_workset",
           "action": "pages",
           "input_bytes": 205,
-          "output_bytes": 16247,
+          "output_bytes": 10228,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -239,14 +239,14 @@
       "capability": "location",
       "bootstrap": "timing",
       "summary": {
-        "tools_list_bytes": 57368,
+        "tools_list_bytes": 62929,
         "tool_count": 32,
         "requests": 6,
         "input_bytes": 1673,
-        "output_bytes": 59229,
-        "total_wire_bytes": 60902,
-        "contract_read_bytes": 19050,
-        "workset_read_bytes": 25170,
+        "output_bytes": 35411,
+        "total_wire_bytes": 37084,
+        "contract_read_bytes": 7270,
+        "workset_read_bytes": 13132,
         "pagination_rounds": 6,
         "wait_rounds": 0,
         "error_responses": 0
@@ -269,7 +269,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 159,
-          "output_bytes": 18891,
+          "output_bytes": 7111,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -280,7 +280,7 @@
           "tool": "read_professional_workset",
           "action": "pages",
           "input_bytes": 158,
-          "output_bytes": 12244,
+          "output_bytes": 6225,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -313,7 +313,7 @@
           "tool": "read_professional_workset",
           "action": "pages",
           "input_bytes": 156,
-          "output_bytes": 12612,
+          "output_bytes": 6593,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -324,14 +324,14 @@
       "capability": "video_prompt",
       "bootstrap": "keyframes",
       "summary": {
-        "tools_list_bytes": 57368,
+        "tools_list_bytes": 62929,
         "tool_count": 32,
         "requests": 7,
-        "input_bytes": 1783,
-        "output_bytes": 34952,
-        "total_wire_bytes": 36735,
-        "contract_read_bytes": 12303,
-        "workset_read_bytes": 10291,
+        "input_bytes": 1855,
+        "output_bytes": 28599,
+        "total_wire_bytes": 30454,
+        "contract_read_bytes": 12311,
+        "workset_read_bytes": 4002,
         "pagination_rounds": 7,
         "wait_rounds": 1,
         "error_responses": 0
@@ -354,7 +354,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 161,
-          "output_bytes": 12142,
+          "output_bytes": 12150,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -364,8 +364,8 @@
           "step": "workset",
           "tool": "read_professional_workset",
           "action": "pages",
-          "input_bytes": 259,
-          "output_bytes": 10032,
+          "input_bytes": 331,
+          "output_bytes": 3671,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -420,14 +420,14 @@
       "capability": "reference_library",
       "bootstrap": "empty",
       "summary": {
-        "tools_list_bytes": 57368,
+        "tools_list_bytes": 62929,
         "tool_count": 32,
         "requests": 5,
         "input_bytes": 1382,
-        "output_bytes": 30474,
-        "total_wire_bytes": 31856,
-        "contract_read_bytes": 15004,
-        "workset_read_bytes": 4267,
+        "output_bytes": 19481,
+        "total_wire_bytes": 20863,
+        "contract_read_bytes": 3937,
+        "workset_read_bytes": 4341,
         "pagination_rounds": 5,
         "wait_rounds": 0,
         "error_responses": 0
@@ -450,7 +450,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 168,
-          "output_bytes": 14836,
+          "output_bytes": 3769,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -461,7 +461,7 @@
           "tool": "read_professional_workset",
           "action": "pages",
           "input_bytes": 167,
-          "output_bytes": 4100,
+          "output_bytes": 4174,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -494,14 +494,14 @@
       "capability": "script",
       "bootstrap": "ready",
       "summary": {
-        "tools_list_bytes": 57368,
+        "tools_list_bytes": 62929,
         "tool_count": 32,
         "requests": 5,
         "input_bytes": 1662,
-        "output_bytes": 79161,
-        "total_wire_bytes": 80823,
-        "contract_read_bytes": 58643,
-        "workset_read_bytes": 8365,
+        "output_bytes": 27955,
+        "total_wire_bytes": 29617,
+        "contract_read_bytes": 7363,
+        "workset_read_bytes": 8439,
         "pagination_rounds": 5,
         "wait_rounds": 0,
         "error_responses": 0
@@ -524,7 +524,7 @@
           "tool": "read_professional_contract",
           "action": "pages",
           "input_bytes": 154,
-          "output_bytes": 58489,
+          "output_bytes": 7209,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null
@@ -535,7 +535,7 @@
           "tool": "read_professional_workset",
           "action": "pages",
           "input_bytes": 153,
-          "output_bytes": 8212,
+          "output_bytes": 8286,
           "is_error": false,
           "pagination_rounds": 1,
           "wait_again": null

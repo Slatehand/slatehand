@@ -28,7 +28,7 @@ from .script_index import (
 )
 
 
-def keyframe_inputs(document, target_ids=(), user_message=""):
+def keyframe_inputs(document, target_ids=(), user_message="", *, focused=False):
     script = document.director_script
     if script is None:
         raise ValueError("导演脚本尚未建立。")
@@ -168,6 +168,7 @@ def keyframe_inputs(document, target_ids=(), user_message=""):
                     ),
                 )
                 for segment in scene_segments(scene)
+                if not focused or segment.id in target_segment_ids
             ),
         )
         for scene in planning_scenes

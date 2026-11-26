@@ -13,18 +13,16 @@ description: 创建或按用户要求修改可审核的 Scene、Shot、ShotSegme
 Provider 字段、图片标签或视频插件的时间语法提前写入脚本。drama Scene 还要遵守 `references/drama-scene-craft.md`：
 情绪由距离、高度、画面权重、镜头对表演的反应和时间这些可见变化承担，不由形容词承担。
 
-只返回 proposal：不要写项目文件，不要调用图片、视频或声音 Provider，不要选择候选、
+首次草稿通过 script proposal 提交。不要写项目文件，不要调用图片、视频或声音 Provider，不要选择候选、
 批准脚本或创建生产任务。角色只能引用输入中提供的 ID；引用库外的临时或画外说话者不伪造 ID，对白写 `character_id: null` 加 `speaker_label` 与只描述本嗓的 `voice_description`（写法见 script-contract）。每个 Scene 自己完整
 描述本场环境，不创建或引用项目级场地。
 
-编辑已有草稿时，以 Core 在本轮 `<core-script-context>` 中直接提供的受控事实为唯一当前版本。不得调用
-read、bash、shell、jq 或其它发现工具，也不得读取项目目录。`outline` 只用于理解顺序和定位，只有 `scenes`
-中的目标 Scene 才能作为正文事实；禁止返回完整草稿。
-用显式 `replace_scene`、`insert_scene`、`delete_scene`、`move_scene` 操作表达修改；只改一个已有 Segment
-时用 `replace_segment`，不要回抄整个 Scene；没有实际修改时返回空操作。
-保留已有层级 ID，新建 Scene、NarrationCue、Shot 或 ShotSegment 的 `id` 必须为 null，不猜测正式 ID。
+编辑已有脚本时，通过 `read_story` 定位目标并读取当前事实。局部回改使用 `edit_script.operations`。
+更新已有 Scene 用 `update_scene_fields` 配 `scene_id` 和 `fields`；调整单段时长用
+`update_segment_fields` 配 `segment_id` 和 `fields.duration_estimate_seconds`。其余操作按当前工具 schema 填写。
+没有修改时省略写调用。初稿中新建层级按 proposal 的输出 schema 填写，由 Core 分配正式 ID。
 
-结构化脚本契约和质量门由 Core 与本 Skill 一起固定装入 Compiler instructions；直接遵守，不要再次读取文件。
+按任务从专业契约目录读取适用的参考正文。
 提交连接若公开 `proposal_source`，大型初稿可以先写入连接指定的固定工作区 JSON，再只用字节数与 SHA-256 引用提交；
 这只是出站传输方式，不能读取旧文件作为项目事实，也不能据此绕过完整 proposal 校验或最终原子提交。
 
