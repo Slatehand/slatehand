@@ -1,3 +1,4 @@
+import { VideoPreview } from "../VideoPreview";
 import { stableStringify, useProtectedValue } from "./draft_protection";
 import { useEffect, useId, useState } from "react";
 import {
@@ -571,9 +572,8 @@ export function SegmentVideoPanel({
         </div>
       ) : selected !== null ? (
         <div className="selected-segment-video">
-          <video
+          <VideoPreview
             controls
-            preload="metadata"
             playsInline
             muted={false}
             src={selected.content_url}
@@ -711,9 +711,8 @@ export function SegmentVideoPanel({
         renderCandidate={(generation, asset) => (
           <section className="video-candidate">
             {asset ? (
-              <video
+              <VideoPreview
                 controls
-                preload="metadata"
                 playsInline
                 muted={false}
                 src={asset.content_url}

@@ -1,3 +1,4 @@
+import { VideoPreview } from "../VideoPreview";
 import { DismissibleDialog } from "../DismissibleDialog";
 import { useEffect, useRef, useState } from "react";
 import { ZoomableImage } from "../ImagePreview";
@@ -530,7 +531,7 @@ export function AssetCenter({
                     {asset.media_type.startsWith("image/") ? (
                       <ZoomableImage src={asset.content_url} alt={asset.display_name} />
                     ) : asset.media_type === "video/mp4" ? (
-                      <video controls preload="metadata" src={asset.content_url} />
+                      <VideoPreview controls src={asset.content_url} />
                     ) : (
                       <audio controls preload="none" src={asset.content_url} />
                     )}
@@ -580,7 +581,7 @@ export function AssetCenter({
                 {asset.media_type.startsWith("image/") ? (
                   <ZoomableImage src={asset.content_url} alt={asset.display_name ?? "项目图片"} />
                 ) : asset.media_type === "video/mp4" ? (
-                  <video controls preload="metadata" src={asset.content_url} />
+                  <VideoPreview controls src={asset.content_url} />
                 ) : (
                   <audio controls preload="none" src={asset.content_url} />
                 )}

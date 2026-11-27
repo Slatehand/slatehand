@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import shlex
@@ -33,7 +34,7 @@ from .asset_transfer import (
     copy_playground_asset_to_project,
     copy_project_asset_to_playground,
 )
-from .http import ApiResponse, BinaryResponse, CookieResponse
+from .http import ApiResponse, BinaryResponse, CookieResponse, FileResponse
 from .request_context import current_http_origin
 
 _PROJECT_RESOURCE = re.compile(
@@ -115,6 +116,20 @@ class SlatehandApi:
         if suffix is None:
             return _error(404, "not_found", "请求的资源不存在。")
 
+        asset_match = _ASSET_CONTENT.fullmatch(suffix)
+        if method == "GET" and asset_match is not None:
+            try:
+                asset, stream = await asyncio.to_thread(
+                    self._workspaces.open_asset, project_id, asset_match.group("asset_id")
+                )
+            except KeyError:
+                return _error(404, "project_not_found", "项目不存在。")
+            except FileNotFoundError:
+                return _error(404, "asset_not_found", "Asset 不存在。")
+            except ValueError as exc:
+                return _error(409, "asset_invalid", str(exc))
+            return FileResponse(200, stream, asset.media_type, asset.byte_count)
+
         try:
             self._workspaces.get(project_id)
         except KeyError:
@@ -128,17 +143,6 @@ class SlatehandApi:
                 playground=self._playground_service,
                 body=body,
             )
-        asset_match = _ASSET_CONTENT.fullmatch(suffix)
-        if method == "GET" and asset_match is not None:
-            try:
-                asset, content = self._structured_director_service(project_id).read_asset(
-                    asset_match.group("asset_id")
-                )
-            except FileNotFoundError:
-                return _error(404, "asset_not_found", "Asset 不存在。")
-            except ValueError as exc:
-                return _error(409, "asset_invalid", str(exc))
-            return BinaryResponse(200, content, asset.media_type)
         resource_path = f"/api/projects/{project_id}/structured-director"
         api = StructuredDirectorHttpApi(
             self._structured_director_service(project_id),

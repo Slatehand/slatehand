@@ -1,3 +1,4 @@
+import { VideoPreview } from "../VideoPreview";
 import type { StructuredDirectorSnapshot } from "../api";
 
 import { NARRATION_LANGUAGE_LABELS } from "./narration";
@@ -239,9 +240,8 @@ export function FinalAssemblyWorkspace({
           {item.selected !== null ? (
             <div className="final-selected">
               <h3>当前选定{item.label}成片</h3>
-              <video
+              <VideoPreview
                 controls
-                preload="metadata"
                 playsInline
                 muted={false}
                 src={item.selected.content_url}
@@ -272,9 +272,8 @@ export function FinalAssemblyWorkspace({
             dismissAllowed={(generation) => generation.allowed_actions.includes("dismiss_history")}
             renderCandidate={(_, asset) =>
               asset ? (
-                <video
+                <VideoPreview
                   controls
-                  preload="metadata"
                   playsInline
                   muted={false}
                   src={asset.content_url}

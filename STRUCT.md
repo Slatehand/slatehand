@@ -306,6 +306,7 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `__init__.py`：`StructuredDirectorStore` facade：读写、原子替换、revision CAS（含按实体的 rebase 判定）、落盘后记录变更日志与域路由。
 - `_domains.py`：域 collaborator 装配。
 - `pipeline.py`：统一 mutation commit pipeline。
+- `asset_content.py`：项目媒体预览的文件校验与可失效资产索引。
 - `domains/README.md`：域 collaborator 约定。
 - `domains/project.py`、`asset.py`、`final.py`、`generation.py`、`keyframe.py`、`location.py`、`narration.py`、
   `reference.py`、`run.py`、`script.py`、`video.py`：对应域的 Store 写入方法。
@@ -440,6 +441,7 @@ Codex/AGY 图片 Provider 及私有图片服务是媒体插件，不是 Agent ru
 - `src/playground/AssetAudioPlayer.tsx`：资产卡片内的紧凑音频播放器，宽度跟随卡片不溢出。
 - `src/playground/CopyToProjectDialog.tsx`：复制到项目的项目/分类选择与 revision 重试。
 - `src/playground/playground.css`：Playground 页面样式。
+- `src/VideoPreview.tsx`：导演台与资产中心的视频预览按滚动视口预加载。
 - `src/ImagePreview.tsx`：图片放大查看（缩略图触发器 + 深色全图浮层），导演台与 Playground 共用。
 - `src/director_workspace/README.md`：工作台说明。
 - `src/director_workspace/contracts.tsx`：工作台 props 与动作契约。

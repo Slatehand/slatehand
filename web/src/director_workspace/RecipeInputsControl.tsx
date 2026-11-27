@@ -1,3 +1,4 @@
+import { VideoPreview } from "../VideoPreview";
 import {
   createContext,
   useContext,
@@ -151,10 +152,9 @@ export function RecipeInputsControl({
     if (asset.media_type.startsWith("audio/"))
       return <AssetAudio asset={asset} />;
     return (
-      <video
+      <VideoPreview
         src={asset.content_url}
         controls
-        preload="metadata"
         aria-label={label}
       />
     );

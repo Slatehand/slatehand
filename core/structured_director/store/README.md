@@ -6,6 +6,7 @@ L3 持久化：schema v38 项目 JSON 的唯一读写入口，完整领域校验
 - `__init__.py`：`StructuredDirectorStore` facade。直接定义核心 public 方法（`path`、`exists`、`create_project`、`read`、
   `execute_director_read`、`observed_generation`、`update_generation`、`recover_interrupted_submissions`、`read_asset`）与持久化私有助手
   （`_atomic_write`、`_editable_document`、`_ingest_asset` 等）；其余 public 方法经 `__getattr__` 路由到 `domains/` 中同名同签名的方法。
+- `asset_content.py`：媒体预览复用同一版本项目文档的资产索引。逐文件校验长度和 SHA-256，文件身份或修改时间变化时重新校验。
 - `pipeline.py`：统一写骨架 `commit_mutation(store, *, loader, mutator)`：loader 读取并做 CAS 与编辑期校验，mutator 做 L2 变换与回执，
   需要写入时调用一次 `_atomic_write`。`_atomic_write` 只在三处被调用：pipeline、`create_project`（独占创建）、
   `delete_assets`（文件暂存回滚必须包裹写入）。

@@ -6,6 +6,8 @@ HTTP 装配连接 Project Workspace、Core application、媒体 Provider 和 Web
 
 `__main__.py` 读取一个或多个 `--provider-dir`，由 `provider_bundles.py` 读取各目录的 `slatehand-provider.toml`、检查 `requires`、导入 bundle 工厂，按目录顺序安装插件实例；bundle 服务在绑定端口后、开始响应前按序 `start()`（失败或启动期间中断时逆序关闭已启动的服务并退出），退出时逆序 `close()`。Server 不 import 任何具体插件。随后经 `core/media_tools` 在找到本机 ffmpeg 时注册确定性工具；项目与 Playground 共用同一个 `ProviderRegistry`，其能力绑定与插件设置持久化在 `.stories/.runtime/providers.json`。`api.py` 提供 `/api/settings/providers`（仅人类可改）读取与修改绑定和插件设置；新提交走当前绑定，历史句柄仍按插件身份回到原实现。插件设置在项目与 Playground 每次提交时读取当前值并记入快照，改设置不失效已有候选。新增模型只需另加一个 Provider 目录，沿用 recipe 协议和通用 Web 表单。SDK/CLI 不进入 Core；私有媒体服务独立部署。
 
+项目 Asset 内容接口在工作线程中打开已校验的本机文件，按浏览器请求的字节范围分块发送。资产中心和参考视频选择器只在视频接近滚动视口时预加载元数据。
+
 `agent_timing.py` 为外部 Agent（`role=agent`）的项目与 Playground 命令写轻量计时日志 `.stories/.runtime/agent-timing.jsonl`：每行一条命令，
 含调用方 ID、命令名、读取能力或 kind（`detail`）、状态、请求与响应字节数、Core 处理耗时 `core_ms`，以及上一次响应完成到本次请求到达的
 `agent_ms`（Agent 自身思考、生成与传输耗时）。只记元数据，不记参数正文、响应正文或凭据；超过 8 MiB 时轮转为 `.prev.jsonl`，写入失败不影响请求。

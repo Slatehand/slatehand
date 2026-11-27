@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, BinaryIO, Protocol
 from urllib.parse import urlsplit
 
 from core.application.caller import AccessDenied, current_caller
@@ -41,13 +41,21 @@ class BinaryResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class FileResponse:
+    status: int
+    body: BinaryIO
+    media_type: str
+    byte_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class CookieResponse:
     status: int
     body: dict[str, Any]
     set_cookie: str
 
 
-ApiResponse = JsonResponse | BinaryResponse | CookieResponse
+ApiResponse = JsonResponse | BinaryResponse | FileResponse | CookieResponse
 
 
 class JsonApi(Protocol):
@@ -286,41 +294,55 @@ class SlatehandRequestHandler(BaseHTTPRequestHandler):
                     retry_policy="inspect_status_before_retry",
                 ),
             )
-        if isinstance(response, BinaryResponse):
+        if isinstance(response, FileResponse):
+            with response.body:
+                self._send_binary(response)
+        elif isinstance(response, BinaryResponse):
             self._send_binary(response)
         elif isinstance(response, CookieResponse):
             self._send_cookie_json(response)
         else:
             self._send_json(response.status, response.body)
 
-    def _send_binary(self, response: BinaryResponse) -> None:
-        body: bytes | memoryview = response.body
+    def _send_binary(self, response: BinaryResponse | FileResponse) -> None:
+        total = response.byte_count if isinstance(response, FileResponse) else len(response.body)
+        start, end = 0, total - 1
         status = response.status
         content_range: str | None = None
         requested_range = self.headers.get("Range") if response.status == 200 else None
         if requested_range is not None:
             try:
-                start, end = _parse_byte_range(requested_range, len(response.body))
+                start, end = _parse_byte_range(requested_range, total)
             except ValueError:
                 self.send_response(416)
-                self.send_header("Content-Range", f"bytes */{len(response.body)}")
+                self.send_header("Content-Range", f"bytes */{total}")
                 self.send_header("Accept-Ranges", "bytes")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
-            body = memoryview(response.body)[start : end + 1]
             status = 206
-            content_range = f"bytes {start}-{end}/{len(response.body)}"
+            content_range = f"bytes {start}-{end}/{total}"
         self.send_response(status)
         self.send_header("Content-Type", response.media_type)
-        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Length", str(end - start + 1))
         self.send_header("Cache-Control", "private, max-age=31536000, immutable")
         self.send_header("Accept-Ranges", "bytes")
         if content_range is not None:
             self.send_header("Content-Range", content_range)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
-        self._write_body(body)
+        if isinstance(response, FileResponse):
+            response.body.seek(start)
+            remaining = end - start + 1
+            while remaining:
+                chunk = response.body.read(min(256 * 1024, remaining))
+                if not chunk:
+                    break
+                if not self._write_body(chunk):
+                    break
+                remaining -= len(chunk)
+        else:
+            self._write_body(memoryview(response.body)[start : end + 1])
 
     def _send_error(self, status: int, code: str, message: str) -> None:
         authorization = code in {"origin_denied", "login_expired"}
@@ -379,14 +401,16 @@ class SlatehandRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self._write_body(body)
 
-    def _write_body(self, body: bytes | memoryview) -> None:
+    def _write_body(self, body: bytes | memoryview) -> bool:
         """写响应体；客户端提前断开不是服务端错误，静默收尾并关闭连接。"""
         if not body:
-            return
+            return True
         try:
             self.wfile.write(body)
+            return True
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True
+            return False
 
     def log_message(self, format: str, *args: object) -> None:
         super().log_message(format, *args)

@@ -1,3 +1,4 @@
+import { VideoPreview } from "../VideoPreview";
 import { DismissibleDialog } from "../DismissibleDialog";
 import { Children, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -436,10 +437,9 @@ export function SingleVideoAssetPickerDialog({
                   aria-label={`${attached ? attachedLabel : "增加"} ${name}`}
                   onClick={() => onSelect(asset.id)}
                 >
-                  <video
+                  <VideoPreview
                     muted
                     playsInline
-                    preload="metadata"
                     src={asset.content_url}
                   />
                   <span>{name}</span>

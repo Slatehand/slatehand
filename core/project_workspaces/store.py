@@ -5,12 +5,15 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from functools import lru_cache
 from pathlib import Path
+from typing import BinaryIO
 from uuid import uuid4
 
 from core.project_settings import ProjectAspectRatio
-from core.structured_director.models import NarrationLanguage, ReferenceGenerationPhase
+from core.structured_director.models import Asset, NarrationLanguage, ReferenceGenerationPhase
 from core.structured_director.store import StructuredDirectorStore
+from core.structured_director.store.asset_content import ProjectAssetReader
 
 _PROJECT_ID = re.compile(r"[0-9a-f]{32}")
 _PROJECT_DIRECTORY = re.compile(r"(?:.+-)?([0-9a-f]{32})")
@@ -104,6 +107,10 @@ class ProjectWorkspaceStore:
         project = self._require_project_directory(project_id)
         return StructuredDirectorStore(project, project_id)
 
+    def open_asset(self, project_id: str, asset_id: str) -> tuple[Asset, BinaryIO]:
+        directory = self._require_project_directory(project_id)
+        return _asset_reader(directory, project_id).open(asset_id)
+
     def move_to_trash(self, project_id: str) -> ProjectWorkspace:
         workspace = self.get(project_id)
         source = self._require_project_directory(project_id)
@@ -158,3 +165,9 @@ class ProjectWorkspaceStore:
         if len(matches) != 1:
             raise ValueError("项目 ID 对应多个目录，请先处理重复副本。")
         return matches[0]
+
+
+@lru_cache(maxsize=32)
+def _asset_reader(directory: Path, project_id: str) -> ProjectAssetReader:
+    store = StructuredDirectorStore(directory, project_id)
+    return ProjectAssetReader(store.path, store.read)
